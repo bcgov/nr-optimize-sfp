@@ -5,6 +5,15 @@
 
 # nr-optimize-sfp
 <!--- Description of the application. ---> 
+The scripts contained in this repository are designed to create enhanced reports on Shared File & Print (SFP) storage for the 6 Natural Resource Ministries.
+- Agriculture and Foods
+- Energy, Mines, and Low Carbon Innovation
+- Environment and Climate Change Strategy
+- Forests
+- Indigenous Relations and Reconciliation
+- Water, Land, and Resource Stewardship
+>
+The reports provide insight into SFP consumption habits and outline areas of concern such as monthly expense, duplication of data, and old / untouched files. Our goal is to arm SFP storage owners with the knowledge of what the data is costing every month and provide them with both "quick wins" for file cleanup as well as alternative, less expensive options for storing their data. We are presently building a self-assessment tool to help SFP storage owners determine whether their data is a suitable fit for Object Storage instead.
 
 ## Documentation
 <!--- Point to another readme or create a GitHub Pages (https://guides.github.com/features/pages/) --->
