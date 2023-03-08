@@ -1,19 +1,5 @@
----
-title: |
-  ![](GFX_OptimizationLogo-Icon_v2.png){width=350px}
-subtitle: "README for Enhanced SFP Reports"
-author: "Heather Hay c/o NRIDS Optimization Team 2023"
-date: "`r format(Sys.time(), '%B %d, %Y')`"
-output: 
-  prettydoc::html_pretty:
-    theme: architect
----
-
-```{r setup, include=FALSE}
-knitr::opts_chunk$set(echo = TRUE)
-library(here)
-library(htmltools)
-```
+# README for Enhanced SFP Reports
+## Heather Hay c/o NRIDS Optimization Team 2023
 
 ### Pre-Requisites
 
@@ -37,7 +23,7 @@ library(htmltools)
 > -   open the file **render_enhanced_sfp_report_overview.R**
 > -   change the file name on line 11 to either *"enhanced_sfp_report_overview.rmd"* or *"enhanced_sfp_report_overview_bcws.rmd"*
 > -   change the bracketed text in the final line of the script to your desired parameters, like in this example: <br>
-<span style="color: teal;">render_report("2022-05-01_EMLI_SFP_Enhanced_Data.csv", "EMLI", "Q1", "FY22-23", "2022-04-30")</span>
+render_report("2022-05-01_EMLI_SFP_Enhanced_Data.csv", "EMLI", "Q1", "FY22-23", "2022-04-30")
 > -   there are 5 mandatory fields to enter <ins>**in order**</ins>:
 >     -   the name of the csv file (you must include .csv in the file name)
 >     -   the acronym of the Minstry
@@ -48,15 +34,15 @@ library(htmltools)
 >
 > The end result is 2 files in your **output** folder, named dynamically based on the parameters you input earlier.
 >
-> -   [SFP_Enhanced_Report_ministry_quarter_fiscalyear.xlsx]{style="color:blue;"}
-> -   [SFP_Enhanced_Report_ministry_quarter_fiscalyear.html]{style="color:blue;"}
+> -   [SFP_Enhanced_Report_ministry_quarter_fiscalyear.xlsx]
+> -   [SFP_Enhanced_Report_ministry_quarter_fiscalyear.html]
 
 ### Reporting on an SFP share
 >
 > -   open the file ***render_enhanced_sfp_report_share.R***
 > -   change the file name on line 11 to either *"enhanced_sfp_report_share.rmd"* or *"enhanced_sfp_report_share_bcws.rmd"*
 > -   change the bracketed text in the final line of the script to your desired parameters, like in this example: <br>
-<span style="color: teal;">render_report("2022-05-01_ENV_SFP_Enhanced_Data.csv", "ENV", "S40183", "Q1", "FY22-23", "2022-05-05")</span>
+render_report("2022-05-01_ENV_SFP_Enhanced_Data.csv", "ENV", "S40183", "Q1", "FY22-23", "2022-05-05")
 > -   there are 6 mandatory fields to enter <ins>**in order**</ins>:
 >     -   the name of the csv file (you must include .csv in the file name)
 >     -   the acronym of the Minstry
@@ -68,20 +54,20 @@ library(htmltools)
 >
 > The end result is 2 files in your **output** folder, named dynamically based on the parameters you input earlier.
 >
-> -   [SFP_Enhanced_Report_ministry_sharename_quarter_fiscalyear.xlsx]{style="color:blue;"}
-> -   [SFP_Enhanced_Report_ministry_sharename_quarter_fiscalyear.html]{style="color:blue;"}
+> -   [SFP_Enhanced_Report_ministry_sharename_quarter_fiscalyear.xlsx]
+> -   [SFP_Enhanced_Report_ministry_sharename_quarter_fiscalyear.html]
 
 ### Reporting on an SFP folder
 >
 > -   open the file ***render_enhanced_sfp_report_folder.R***
 > -   change the file name on line 11 to either *"enhanced_sfp_report_folder.rmd"* or *"enhanced_sfp_report_folder_bcws.rmd"*
 > -   change the bracketed text in the final line of the script to your desired parameters, like in this example: <br>
-<span style="color: teal;">render_report("2022-05-01_IRR_SFP_Enhanced_Data.csv", "IRR",  "/ifs/sharedfile/top_level/C92/S92002/ABR_Fiscal_Shared", "ABR_Fiscal_Shared", "Q1", "FY22-23", "2022-05-10")</span>
+render_report("2022-05-01_IRR_SFP_Enhanced_Data.csv", "IRR",  "/ifs/sharedfile/top_level/C92/S92002/ABR_Fiscal_Shared", "ABR_Fiscal_Shared", "Q1", "FY22-23", "2022-05-10")
 > -   there are 7 mandatory fields to enter <ins>**in order**</ins>:
 >     -   the name of the csv file (you must include .csv in the file name)
 >     -   the acronym of the Minstry
 >     -   the folder path as shown in the raw OCIO file. If you have a folder name in your path that has parentheses around it, enclose the parentheses in square brackets so that they're "escaped" from the regex expression. Do the same for special characters. \
->         i.e. [ADMINISTRATION (100-499)]{style="color:teal;"} needs square brackets around [(100-499)]{style="color:teal;"}
+>         i.e. [ADMINISTRATION (100-499)] needs square brackets around [(100-499)]
 >     -   the final folder name **exactly** as it is in the folder path. It is used as a boundary in the main script for when folder names are similar, but you only want to pull information from one of them. i.e. a simple filter on "ROB" might get you "ROB", "ROB FOI", and "ROBERTSON CREEK", but having the boundary applied ensures you only get "ROB"
 >     -   the fiscal quarter (please format as Q# for consistency)
 >     -   the fiscal year (please format as FY##-## for consistency)
@@ -90,8 +76,8 @@ library(htmltools)
 >
 > The end result is 2 files in your **output** folder, named dynamically based on the parameters you input earlier.
 >
-> -   [SFP_Enhanced_Report_ministry_foldername_quarter_fiscalyear.xlsx]{style="color:blue;"}
-> -   [SFP_Enhanced_Report_ministry_foldername_quarter_fiscalyear.html]{style="color:blue;"}
+> -   [SFP_Enhanced_Report_ministry_foldername_quarter_fiscalyear.xlsx]
+> -   [SFP_Enhanced_Report_ministry_foldername_quarter_fiscalyear.html]
 
 ### Alternate Method of Running the Reports
 >
@@ -103,9 +89,9 @@ library(htmltools)
 >
 > The end result is both an excel file in your **output** folder that is named dynamically based on the parameters you input earlier, and a html file in your **scripts** folder <ins>that will need to be manually renamed</ins>. For example:
 >
-> -   [SFP_Enhanced_Report_WLRS_Q4_FY22-23.xlsx]{style="color:blue;"} **and** [enhanced_sfp_report_overview.html]{style="color:blue;"} 
-> -   [SFP_Enhanced_Report_BCWS_S65005_Q4_FY22-23.xlsx]{style="color:blue;"} **and** [enhanced_sfp_report_share.html]{style="color:blue;"}  
-> -   [SFP_Enhanced_Report_IRR_ATN_Public_Shr_Q4_FY22-23.xlsx]{style="color:blue;"} **and** [enhanced_sfp_report_folder.html]{style="color:blue;"}
+> -   [SFP_Enhanced_Report_WLRS_Q4_FY22-23.xlsx] **and** [enhanced_sfp_report_overview.html]
+> -   [SFP_Enhanced_Report_BCWS_S65005_Q4_FY22-23.xlsx] **and** [enhanced_sfp_report_share.html]
+> -   [SFP_Enhanced_Report_IRR_ATN_Public_Shr_Q4_FY22-23.xlsx] **and** [enhanced_sfp_report_folder.html]
 
 ### Reference Material
 >
