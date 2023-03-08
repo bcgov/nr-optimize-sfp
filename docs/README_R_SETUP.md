@@ -1,9 +1,6 @@
----
-title: |
-  ![Team Logo with a large cog and small dollar sign in background with a magnifying glass in foreground to represent the "O" in "Optimization"](GFX_OptimizationLogo-Icon_v2.png){width=350px}
-subtitle: "README for Using R and R Studio"
-author: "Heather Hay c/o NRIDS Optimization Team 2023"
----
+# README for Using R and R Studio
+## Heather Hay c/o NRIDS Optimization Team 2023
+
 
 ### Installing R and R Studio
 >
@@ -26,7 +23,7 @@ Alternatively, you can install the latest versions from Chocolately running CMD 
 The chocolatey documentation is here:
 >
 * [R](https://community.chocolatey.org/packages/R.Project#install)  
-* [R Studio]([<https://community.chocolatey.org/packages/R.Studio#install)>
+* [R Studio](https://community.chocolatey.org/packages/R.Studio#install)
 * [Pandoc](https://community.chocolatey.org/packages/pandoc)
 
 ### Setting up Your Folder Hierarchy for R
@@ -70,9 +67,10 @@ In RStudio, you can go to the Packages tab on the right, select Install, type in
 >
 > If you choose to run this script in VS Code instead of RStudio, you will need to install <span style="color: darkblue;">R Extension for Visual Studio Code</span> by Yuki Ueda.
 >
-You'll also want to set the system environment in VS Code with this line:
+> You'll also want to set the system environment in VS Code with this line: <br>
 <span style="color: darkorange;">*Sys.setenv(RSTUDIO_PANDOC="C:/Program Files/RStudio/bin/")*</span>
-You can find the correct directory by typing <span style="color: darkorange;">*Sys.getenv("RSTUDIO_PANDOC")*</span> into the console
+>
+> You can find the correct directory by typing <span style="color: darkorange;">*Sys.getenv("RSTUDIO_PANDOC")*</span> into the console
 
 ### Preferences
 >
