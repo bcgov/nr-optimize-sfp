@@ -79,7 +79,7 @@ render_report("2022-05-01_IRR_SFP_Enhanced_Data.csv", "IRR",  "/ifs/sharedfile/t
 > -   open the *enhanced_sfp_report_<overview, share, or folder>.rmd* file 
 > -   press the arrow beside "Knit" and select "Knit with Parameters"
 > -   populate the fields in the resultant prompt window with your parameters, following the examples provided\
->     ![Knit Parameters prompt](KWP.jpg)
+>     <img src="https://github.com/bcgov/nr-optimize-sfp/blob/main/docs/KWP.jpg" width=40% height=40%>
 > -   press "Knit"
 >
 > The end result is both an excel file in your **output** folder that is named dynamically based on the parameters you input earlier, and a html file in your **scripts** folder <ins>that will need to be manually renamed</ins>. For example:
