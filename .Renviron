@@ -1,0 +1,3 @@
+# Path to pandoc.exe for generating HTML output
+# You can find the correct Pandoc directory by typing Sys.getenv("RSTUDIO_PANDOC") in your console
+Sys.setenv(RSTUDIO_PANDOC="C:/Program Files/RStudio/bin/")

@@ -1,0 +1,10 @@
+library(praise)
+praise()
+
+# Edit the paths below as they apply to your unique setup
+
+# path to your R package library
+.libPaths("C:/Users/$($env:USERNAME)/OneDrive - Government of BC/Documents/R/win-library/4.2")
+
+# path to your working directory
+setwd("C:/Git_Repo/nr-optimize-sfp")

@@ -1,0 +1,392 @@
+---
+author: "Copyright: Optimization Team 2023"
+date: "Report compiled on `r format(Sys.time(), '%B %d, %Y')`"
+output: 
+  prettydoc::html_pretty:
+    theme: architect
+params:
+  data:
+    label: "Input file:"
+    value: "*.csv"
+    input: text
+  ministry:
+    label: "Ministry Name:"
+    value: AF
+    input: select
+    choices: [AF, EMLI, ENV, FOR, IRR, WLRS]
+  share:
+    label: "Share Name to Search:"
+    value: "S01234"
+    input: text
+  quarter:
+    label: "Quarter:"
+    value: Q1
+    input: select
+    choices: [Q1, Q2, Q3, Q4]
+  fiscal:
+    label: "Fiscal Year:"
+    value: FY22-23
+    input: select
+    choices: [FY22-23, FY23-24, FY24-25]
+  collected:
+    label: "datestamp on OCIO file:"
+    value: 2022-05-05
+    input: text
+title: |
+  ![](GFX_OptimizationLogo-Icon_v2.png){width=350px}  
+  SFP Enhanced Report on Share `r params$share` <br> `r params$fiscal` `r params$quarter` 
+subtitle: "Data collected on `r params$collected` for Ministry of `r params$ministry`"
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+library(data.table)
+library(DT)
+library(dbplyr)
+library(dplyr)
+library(forcats)
+library(glue)
+library(here)
+library(htmltools)
+library(knitr)
+library(lubridate)
+library(openxlsx)
+library(scales)
+library(stringr)
+library(stringi)
+library(tidyverse)
+library(shiny)
+library(zoo)
+```
+
+```{r load data, include = FALSE}
+here::here()
+
+# load csv and fill empty cells 
+sfp_data <- read_csv((here("source", glue("{params$data}", show_col_types = FALSE, na.strings=c(""," ","NULL")))))
+
+# keep only the first 9 columns
+sfp_data <- sfp_data[,c(1:9)]
+
+# rename columns
+colnames(sfp_data) <- c("filename", "path", "filetype","category","sizemb","lastaccessdate","modificationdate","creationdate","share")
+```
+
+```{r functions, include = FALSE}
+convert.date <- function(.data) {
+format(as.POSIXct(.data,format='%m/%d/%Y %H:%M:%S'),format='%Y-%m-%d')
+}
+
+sheet.names <- function(.data) {
+addWorksheet(excel, .data)
+}
+
+dt.worksheets <- function(x, .data) {
+writeDataTable(excel, sheet = x, .data, colNames = TRUE, withFilter = TRUE)
+}
+
+freeze.panes <- function(x) {
+freezePane(excel, x, firstRow = TRUE)
+}
+```
+
+```{r folder search, include = FALSE}
+formatted_sfp_data <- sfp_data %>%
+  mutate(share = gsub("\\", "", share, fixed=TRUE)) %>%
+  filter(str_detect(share, {params$share})) %>%
+  mutate(root = word(path, 1, 7, sep = "\\\\")) %>%
+  mutate(sizegb = sizemb / 1000) %>% 
+  mutate(sizegb = round(sizegb, 3)) %>% 
+  mutate(filetype = str_extract(filename, "[^.]+$")) %>%
+  mutate(filetype = tolower(filetype)) %>% 
+  mutate(monthly_cost = sizegb * 2.7) %>% 
+  mutate(monthly_cost = round((monthly_cost), 2)) %>% 
+  mutate(obj_store_cost = sizegb * 0.07) %>% 
+  mutate(object_storage_cost = round((obj_store_cost), 2)) %>% 
+  mutate(lastaccessdate = convert.date(lastaccessdate)) %>% 
+  mutate(modificationdate = convert.date(modificationdate)) %>% 
+  mutate(creationdate = convert.date(creationdate)) %>%
+  select(filename, filetype, category, root, path, sizemb, sizegb, lastaccessdate, modificationdate, creationdate, monthly_cost, obj_store_cost, object_storage_cost)
+```
+
+```{r determine file types per category, include = FALSE}
+sfp_categories <- formatted_sfp_data %>% 
+  group_by(category, filetype) %>% 
+  select(category, filetype)
+
+sfp_categories_filetypes <- sfp_categories %>% 
+  distinct() %>% 
+  arrange(category, filetype)
+```
+
+```{r, include = FALSE}
+#count total number of files
+count_files <- nrow(sfp_data)
+count_files_formatted <- format(count_files, big.mark = ",", scientific = FALSE)
+```
+
+```{r calculate share size, include = FALSE}
+calc_share_size <- formatted_sfp_data %>%  
+  summarize("folder size gb" = sum(sizegb), "number of files" = n(), "monthly cost" = sum(monthly_cost), "object storage cost" = sum(object_storage_cost)) 
+
+calc_share_size <- calc_share_size[order(-calc_share_size$"monthly cost"),]
+```
+
+```{r file count per folder, include = FALSE}
+#count number of files per folder
+folder_filetally <- formatted_sfp_data %>%
+  group_by(path) %>% 
+  summarise("number of files" = n())
+```
+
+```{r calculate share category size, include = FALSE}
+share_category_size <- formatted_sfp_data %>%
+  group_by(category) %>% 
+  summarize("Size(GB)" = sum(sizegb), "number of files" = n(), "monthly cost" = sum(monthly_cost)) %>% 
+  select(category, "number of files", "Size(GB)", "monthly cost")
+
+share_category_size <- share_category_size[order(-share_category_size$"monthly cost"),]
+
+share_category_size$"monthly cost" <- dollar(share_category_size$"monthly cost")
+share_category_size$"number of files" <- format(share_category_size$"number of files", big.mark = ",", scientific = FALSE)
+```
+
+```{r calculate folder category sizes, include = FALSE}
+folder_category_size <- formatted_sfp_data %>%
+  group_by(category, path) %>% 
+  summarize("Size(GB)" = sum(sizegb), "number of files" = n(), "monthly cost" = sum(monthly_cost), "object storage cost" = sum(object_storage_cost)) %>% 
+  select(path, category, "number of files", "Size(GB)", "monthly cost", "object storage cost")
+
+folder_category_size <- folder_category_size[order(-folder_category_size$"monthly cost"),]
+```
+
+```{r calculate folder sizes, include = FALSE}
+folder_size <- formatted_sfp_data %>%
+  group_by(path) %>% 
+  summarize("folder size gb" = sum(sizegb), "monthly cost" = sum(monthly_cost), "object storage cost" = sum(object_storage_cost))
+
+folder_size <- folder_size[order(-folder_size$"monthly cost"),]
+```
+
+```{r create table with folder size, depth, and file tally, include = FALSE}
+table_pathsize_tallyfiles <- inner_join(folder_size,folder_filetally, by = "path") %>% 
+  select(path, "number of files", "folder size gb", "monthly cost", "object storage cost")
+
+# Count the number of '/'s in each element of string
+table_pathsize_tallyfiles$folderdepth <- str_count(table_pathsize_tallyfiles$path, "/")
+
+# count the number of '/'s in the path parameter, subtract x from beginning of path (re: escaped backslashes)
+path_depth <- stri_count_fixed("{params$share}", "/")
+
+# subtract path parameter count from each path name's count for a folder depth that starts at the desired search folder
+table_pathsize_tallyfiles$folderdepth <- table_pathsize_tallyfiles$folderdepth - path_depth 
+
+table_pathsize_tallyfiles <- table_pathsize_tallyfiles[order(-table_pathsize_tallyfiles$"monthly cost"),] %>% 
+  select(path, folderdepth, "number of files", "folder size gb", "monthly cost", "object storage cost")
+```
+
+```{r tally folders based on folder depth, include = FALSE}
+table_folderdepth_tallyfolders <- table_pathsize_tallyfiles %>%
+  group_by(folderdepth) %>% 
+  tally(name = "folderdepth_count")
+
+table_folderdepth_tallyfolders$"folderdepth_count" <- format(table_folderdepth_tallyfolders$"folderdepth_count", big.mark = ",", scientific = FALSE)
+```
+
+```{r folder count, echo = FALSE}
+# tailor this statement to the specific share
+folder_count <- unique(formatted_sfp_data$path)
+folder_count <- length(folder_count)
+folder_count <- format(folder_count, big.mark = ",", scientific = FALSE)
+```
+
+```{r average folder depth, echo = FALSE}
+# tailor this statement to the specific path
+mean_depth <- as.integer(mean(table_pathsize_tallyfiles$folderdepth))
+max_depth <- as.integer(max(table_pathsize_tallyfiles$folderdepth))
+```
+
+```{r size of entire share in GB, echo = FALSE}
+# tailor this statement to the specific share
+share_size <- sum(table_pathsize_tallyfiles$"folder size gb")
+sharesize <- format(share_size, big.mark = ",", scientific = FALSE)
+```
+
+```{r share cost, echo = FALSE}
+# calculated at $2.70 per GB
+sharecost <- sum(share_size) * 2.7
+share_cost <- dollar(sharecost)
+objstorecost <- sum(share_size) * 0.07
+objstore_cost <- dollar(objstorecost)
+annualsavings <- sum(sharecost - objstorecost) * 12
+annual_savings <- dollar(annualsavings)
+```
+
+```{r find duplicate files, include = FALSE}
+# find files that are duplicated in both name and size
+duplicate_files <- formatted_sfp_data %>% 
+  group_by(filename, sizegb) %>% 
+  filter( n() > 1 )
+
+duplicate_files_formatted <- duplicate_files %>% 
+  select (filename, path, category, sizegb, monthly_cost, lastaccessdate, modificationdate, creationdate) 
+
+duplicate_files_formatted <- duplicate_files_formatted[order(-duplicate_files_formatted$monthly_cost),]
+```
+
+```{r duplicates cost, echo = FALSE}
+# calculated at $2.70 per GB
+dup_new <- duplicate_files[!duplicated(duplicate_files[ , c("filename", "sizegb")]), ]
+
+dup_orig_cost <- sum(dup_new$monthly_cost) # cost of each original file that has a duplicate
+dup_all_cost <- sum(duplicate_files$monthly_cost) # cost of all the duplicated files
+dup_cost <- dollar(sum(dup_all_cost - dup_orig_cost))
+```
+
+```{r count the duplicate files, include = FALSE}
+dup_count <- nrow(duplicate_files) # count of all the duplicated files 
+dist_dup <- nrow(dup_new) # count of each original file that has a duplicate
+
+dup_percent <- sum((dup_count - dist_dup) / count_files) * 100
+dup_percent <- format(round(dup_percent, 1), nsmall = 1)
+
+dist_dup <- format(dist_dup, big.mark = ",", scientific = FALSE)
+```
+
+```{r find files older than 5 yrs, include = FALSE}
+# convert the data collected text to date, subtract 5 years
+date <- as.Date({params$collected}, "%Y-%m-%d")
+dt_less5 <- ymd(date) - years(5)
+
+# files last accessed more than 5 years ago
+files_accessed_5plus <- formatted_sfp_data %>% 
+  filter(lastaccessdate < dt_less5) %>% 
+  select(filename, path, category, sizegb, monthly_cost, lastaccessdate) 
+
+files_accessed_5plus <- files_accessed_5plus[(order(as.Date(files_accessed_5plus$lastaccessdate))),]
+
+
+# files last modified more than 5 years ago
+files_modified_5plus <- formatted_sfp_data %>% 
+  filter(modificationdate < dt_less5) %>% 
+  select(filename, path, category, sizegb, monthly_cost, modificationdate)
+
+files_modified_5plus <- files_modified_5plus[(order(as.Date(files_modified_5plus$modificationdate))),]
+```
+
+```{r count the old files, include = FALSE}
+la_count <- nrow(files_accessed_5plus)
+lm_count <- nrow(files_modified_5plus)
+
+la_5plus_count <- format(la_count, big.mark = ",", scientific = FALSE)
+lm_5plus_count  <- format(lm_count, big.mark = ",", scientific = FALSE)
+
+la_percent <- (la_count / count_files) * 100
+lm_percent <- (lm_count / count_files) * 100
+
+la_percent <- format(round(la_percent, 1), nsmall = 1)
+lm_percent <- format(round(lm_percent, 1), nsmall = 1)
+```
+
+### DISCLAIMER
+
+> The source data for this report is collected from the OCIO and <span style="color: red;">does not include any files under 1MB</span>. This is done by design to keep the reports manageable, as including files under 1 MB would increase the report size tenfold.
+
+```{r just the facts, echo = FALSE}
+glue('The size of the {params$share} share (excluding files under 1MB) is {sharesize} GB.')
+
+glue('There are {folder_count} folders in {params$share}.')
+
+glue('The average depth in {params$share} is {mean_depth} folders, and the maximum is {max_depth}.')
+datatable(table_folderdepth_tallyfolders, rownames = FALSE, colnames = c('Folder Depth' = 1, 'Number of Folders' = 2), options=list(dom = 'lrtip', columnDefs = list(list(className = 'dt-left', targets="_all"))))  
+
+
+glue('Data consumption Breakdown by category for {params$share}')
+datatable(share_category_size, rownames = FALSE, colnames = c('Category' = 1, 'Number of Files' = 2, 'Size(GB)' = 3, 'Cost per Month' = 4), options=list(columnDefs = list(list(className = 'dt-left', targets="_all"))))  
+
+glue('{la_percent}% of files were last accessed over 5 years ago ({la_5plus_count} files). 
+{lm_percent}% of files were last modified over 5 years ago ({lm_5plus_count} files).')
+
+glue('The monthly cost of the {params$share} share is {share_cost}.')
+
+glue('If this data were held in Object Storage, the monthly cost would be {objstore_cost}. 
+The annual savings would be {annual_savings}!')
+
+glue('Duplicate files make up approx {dup_percent}% of the content in {params$share}. That is {dist_dup} files with at least one copy.
+Removing the duplicates within {params$share} could save at least {dup_cost} per month!')
+
+glue('* Duplicate files are defined here as having the same file name & size as another, but residing in a different folder')
+```
+
+### 2023 SFP Goals - Records Management and Migration to Level Out Current Storage Costs
+
+- [Fiscal Year Chart of NRM SFP Consumption](http://nrmccp-metabase.apps.silver.devops.gov.bc.ca/public/question/dd440f8a-b7df-4faf-9eea-0a93a8bc5366)
+
+- Interested in reducing SFP consumption by migrating data to Object Storage? The Optimization Team has more information on [Confluence](https://apps.nrs.gov.bc.ca/int/confluence/display/OPTIMIZE/NRS+Object+Storage) or you can place a request through the [Jira Service Desk](https://apps.nrs.gov.bc.ca/int/jira/servicedesk/customer/portal/1/create/701) after reading our [Service Level Agreement](https://apps.nrs.gov.bc.ca/int/confluence/display/OPTIMIZE/Object+Storage+Forms?preview=/65671335/95651495/SLA_Revision_0.5.pdf). <br>
+[Contact the Optimization Team](mailto:NRIDS.Optimize@gov.bc.ca)
+
+- Do you have questions about appropriate Records Management for your data? Visit [Government Records Services](https://www2.gov.bc.ca/gov/content/governments/services-for-government/information-management-technology/records-management) or [Contact the GRS Team](mailto:grs@gov.bc.ca)
+
+```{r dynamic output name, include = FALSE}
+# create output file name based on parameters
+output_excel = paste0("SFP_Enhanced_Report_", params$ministry, "_", params$share, "_", params$quarter, "_", params$fiscal, ".xlsx")
+```
+
+```{r write output to Excel file, include = FALSE}
+# create workbook
+excel <- createWorkbook(output_excel)
+
+# create sheet names
+firstSheet = "Folder Details"
+secondSheet = "Duplicate Files"
+thirdSheet = "Last Accessed 5+ Years"
+fourthSheet = "Last Modified 5+ Years"
+fifthSheet = "Category Details by Folder"
+sixthSheet = "Category Extensions"
+
+# add worksheets to workbook
+sheet.names(firstSheet)
+sheet.names(secondSheet)
+sheet.names(thirdSheet)
+sheet.names(fourthSheet)
+sheet.names(fifthSheet)
+sheet.names(sixthSheet)
+
+# assign data tables to worksheets, apply filter across all sheets
+dt.worksheets(1,table_pathsize_tallyfiles) 
+dt.worksheets(2,duplicate_files_formatted)
+dt.worksheets(3,files_accessed_5plus)
+dt.worksheets(4,files_modified_5plus)
+dt.worksheets(5,folder_category_size) 
+dt.worksheets(6,sfp_categories_filetypes)
+
+# freeze top row of all sheets
+freeze.panes(1)
+freeze.panes(2)
+freeze.panes(3)
+freeze.panes(4)
+freeze.panes(5)
+freeze.panes(6)
+
+# set custom column widths for all sheets
+setColWidths(excel, sheet = 1, cols = c(1, 2:6), widths = c(75, 20, 20, 20, 20, 20))
+setColWidths(excel, sheet = 2, cols = c(1, 2, 3:8), widths = c(50, 75, 20, 20, 20, 20, 20, 20))
+setColWidths(excel, sheet = 3, cols = c(1, 2, 3:8), widths = c(50, 75, 20, 20, 20, 20, 20, 20))
+setColWidths(excel, sheet = 4, cols = c(1, 2, 3:8), widths = c(50, 75, 20, 20, 20, 20, 20, 20))
+setColWidths(excel, sheet = 5, c(1, 2:6), widths = c(75, 20, 20, 20, 20, 20))
+setColWidths(excel, sheet = 6, c(1:2), widths = c(20, 20))
+
+# set currency format on column
+sty1 = createStyle(numFmt="$0.00")
+addStyle(excel, sheet = 1, sty1, rows=2:(nrow(table_pathsize_tallyfiles)+1), cols=5)
+addStyle(excel, sheet = 1, sty1, rows=2:(nrow(table_pathsize_tallyfiles)+1), cols=6)
+addStyle(excel, sheet = 2, sty1, rows=2:(nrow(duplicate_files_formatted)+1), cols=5)
+addStyle(excel, sheet = 3, sty1, rows=2:(nrow(files_accessed_5plus)+1), cols=5)
+addStyle(excel, sheet = 4, sty1, rows=2:(nrow(files_modified_5plus)+1), cols=5)
+addStyle(excel, sheet = 5, sty1, rows=2:(nrow(folder_category_size)+1), cols=5)
+addStyle(excel, sheet = 5, sty1, rows=2:(nrow(folder_category_size)+1), cols=6)
+addStyle(excel, sheet = 6, sty1, rows=2:(nrow(sfp_categories_filetypes)+1), cols=5)
+
+# save the workbook to file
+saveWorkbook(excel, file = here("output", output_excel), overwrite = TRUE)
+```
