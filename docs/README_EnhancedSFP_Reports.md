@@ -8,6 +8,8 @@
 > You must have your R environment configured already, as outlined in **README_R_SETUP** <br>
 > The following files need to be in your **scripts** folder:
 >
+> -   load_groupshare_files.R
+> -   custom_sfp_functions.R
 > -   enhanced_sfp_report_overview.rmd
 > -   enhanced_sfp_report_overview_bcws.rmd
 > -   enhanced_sfp_report_share.rmd
@@ -18,6 +20,10 @@
 > -   render_sfp_enhanced_report_folder.R
 > -   render_sfp_enhanced_report_share.R
 > -   GFX_OptimizationLogo-Icon_v2.png
+> 
+> The following files need to be in your **source** folder:
+> - **all 6** of the NRM Ministry .xlsx files for monthly group share consumption *that match the month of the report you're compiling*
+> - the NRM Ministry .csv files for shared file enhanced reporting
 ### Reporting on the Ministry-level SFP
 >
 > -   open the file **render_enhanced_sfp_report_overview.R**
