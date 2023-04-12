@@ -35,7 +35,7 @@ subtitle: "Data collected on `r params$collected` for Ministry of `r params$mini
 ---
 
 ```{r setup, include=FALSE}
-knitr::opts_chunk$set(echo = TRUE)
+knitr::opts_chunk$set(echo=TRUE, warning=FALSE, message=FALSE, fig.width=7, fig.height=5, fig.path='figure/')
 library(data.table)
 library(DT)
 library(dbplyr)
@@ -53,11 +53,16 @@ library(stringi)
 library(tidyverse)
 library(shiny)
 library(zoo)
+
+here::here()
+```
+
+```{r global, call-external-functions, include = FALSE}
+# load custom functions from external scripts
+source(here("scripts", glue('custom_sfp_functions.R')), local = knitr::knit_global())
 ```
 
 ```{r load data, include = FALSE}
-here::here()
-
 # load csv and fill empty cells 
 sfp_data <- read_csv((here("source", glue("{params$data}", show_col_types = FALSE, na.strings=c(""," ","NULL")))))
 
@@ -66,24 +71,6 @@ sfp_data <- sfp_data[,c(1:9)]
 
 # rename columns
 colnames(sfp_data) <- c("filename", "path", "filetype","category","sizemb","lastaccessdate","modificationdate","creationdate","share")
-```
-
-```{r functions, include = FALSE}
-convert.date <- function(.data) {
-format(as.POSIXct(.data,format='%m/%d/%Y %H:%M:%S'),format='%Y-%m-%d')
-}
-
-sheet.names <- function(.data) {
-addWorksheet(excel, .data)
-}
-
-dt.worksheets <- function(x, .data) {
-writeDataTable(excel, sheet = x, .data, colNames = TRUE, withFilter = TRUE)
-}
-
-freeze.panes <- function(x) {
-freezePane(excel, x, firstRow = TRUE)
-}
 ```
 
 ```{r folder search, include = FALSE}
@@ -176,7 +163,7 @@ table_sfp_share <- left_join(share_file_count, share_size, by = "share") %>%
 
 ```{r size of entire ministry SFP in GB, include = FALSE}
 sfp_size <- sum(formatted_sfp_data$sizegb)
-sfp_size <- format(sfp_size, big.mark = ",", scientific = FALSE)
+sfpsize <- format(sfp_size, big.mark = ",", scientific = FALSE)
 ```
 
 ```{r SFP cost for entire ministry, include = FALSE}
@@ -245,23 +232,24 @@ duplicate_files_formatted <- duplicate_files %>%
   select (filename, path, category, sizegb, monthly_cost, lastaccessdate, modificationdate, creationdate) 
 
 duplicate_files_formatted <- duplicate_files_formatted[order(-duplicate_files_formatted$monthly_cost),]
+
+duplicate_size <- round(sum(duplicate_files_formatted$sizegb),2) # size of all the duplicated files, including originals
 ```
 
 ```{r duplicates cost, echo = FALSE}
 # calculated at $2.70 per GB
 dup_new <- duplicate_files[!duplicated(duplicate_files[ , c("filename", "sizegb")]), ]
 
-dup_orig_cost <- sum(dup_new$monthly_cost) # cost of each original file that has a duplicate
-dup_all_cost <- sum(duplicate_files$monthly_cost) # cost of all the duplicated files
-dup_cost <- dollar(sum(dup_all_cost - dup_orig_cost))
+dup_size <- round(sum(dup_new$sizegb),2)
+dup_size_diff <- duplicate_size - dup_size
+dup_size_formatted <- format(dup_size_diff, big.mark = ",", scientific = FALSE)
+
+dup_cost <- dollar(dup_size_diff * 2.7)
 ```
 
 ```{r count the duplicate files, include = FALSE}
-dup_count <- nrow(duplicate_files) # count of all the duplicated files 
+dup_count <- nrow(duplicate_files_formatted) # count of all the duplicated files 
 dist_dup <- nrow(dup_new) # count of each original file that has a duplicate
-
-dup_percent <- sum((dup_count - dist_dup) / count_files) * 100
-dup_percent <- format(round(dup_percent, 1), nsmall = 1)
 
 dist_dup <- format(dist_dup, big.mark = ",", scientific = FALSE)
 ```
@@ -301,43 +289,95 @@ la_percent <- format(round(la_percent, 1), nsmall = 1)
 lm_percent <- format(round(lm_percent, 1), nsmall = 1)
 ```
 
-### DISCLAIMER
-
-> The source data for this report is collected from the OCIO and <span style="color: red;">does not include any files under 1MB</span>. This is done by design to keep the reports manageable, as including files under 1 MB would increase the report size tenfold.
-
-```{r just the facts, echo = FALSE}
-glue('The size of the {params$ministry} SFP (excluding files under 1MB) is {sfp_size} GB.')
-
-glue('There are {sfp_folder_count} folders total in {params$ministry} SFP.
-     {root_folder_count} of those are top-level (root) folders')
-
-glue('The {params$ministry} SFP contains {count_files_formatted} files.')
-
-glue('The average depth in {params$ministry} is {mean_depth} folders, and the maximum is {max_depth}.')
-
-datatable(folderdepth_tallyfolders, rownames = FALSE, colnames = c('Folder Depth' = 1, 'Number of Folders' = 2), options=list(dom = 'lrtip', columnDefs = list(list(className = 'dt-left', targets="_all"))))
-
-glue('Data consumption Breakdown by category for {params$ministry}')
-
-datatable(category_cost_all, rownames = FALSE, colnames = c('Category' = 1, 'Number of Files' = 2, 'Size(GB)' = 3, 'Cost per Month' = 4), options=list(columnDefs = list(list(className = 'dt-left', targets="_all")))) 
-
-glue('{la_percent}% of files were last accessed over 5 years ago ({la_5plus_count} files). 
-{lm_percent}% of files were last modified over 5 years ago ({lm_5plus_count} files).')
-
-glue('The monthly cost of the {params$ministry} SFP folders is ${sfp_cost}.')
-
-glue('Duplicate files* make up approx {dup_percent}% of the {params$ministry} folders. That is {dist_dup} files with at least one copy.
-Removing the duplicates in the {params$ministry} SFP folders could save at least {dup_cost} per month!
-
-* Duplicate files are defined here as having the same file name & size as another, but residing in a different folder')
+```{r global, call-groupshare-data, cache = TRUE, include = FALSE}
+# load group share dataframe  from external scripts
+source(here("scripts", glue('load_groupshare_files.R')), local = knitr::knit_global())
 ```
 
-### 2023 SFP Goals - Records Management and Migration to Level Out Current Storage Costs
+```{r grpshare, cache = TRUE, dependson = "call-groupshare-data", include = FALSE}
+groupshare_ministry <- filter(groupshare_df, ministry == {params$ministry})
+  
+groupshare_ministry_size <- sum(groupshare_ministry$used_gb)
+gms_formatted <- format(groupshare_ministry_size, big.mark = ",", scientific = FALSE)
+
+datasrc_diff <- (groupshare_ministry_size) - round(sfp_size,2)
+
+groupshare_ministry_cost <- dollar(groupshare_ministry_size * 2.7)
+
+dup_percent <- (dup_size_diff / groupshare_ministry_size) * 100 # percentage of SFP that consists of duplicate files, based on size, without originals
+
+dup_percent <- format(round(dup_percent, 1), nsmall = 1)
+
+# create a bcgov colour palette
+bc_colours <- c("#234075", "#e3a82b", "#65799e", "#FFFFFF")
+
+# pie chart with percentages
+slices <- c(sfp_size, datasrc_diff)
+lbls <- c('Included', 'Excluded')
+pct <- round(slices / sum(slices) * 100)
+lbls <- paste(lbls, pct) # add percents to labels
+lbls <- paste(lbls, '%', sep='') # add % to labels
+```
+
+## SFP Information
+
+The total size of the `r {params$ministry}` SFP is `r {gms_formatted}` GB. 
+
+The total monthly cost of the `r {params$ministry}` SFP folders is **`r {groupshare_ministry_cost}`**.
+
+The `r {params$ministry}` SFP contains `r {count_files_formatted}` files.  
+
+There are `r {sfp_folder_count}` SFP folders in `r {params$ministry}` (excluding folders under 1MB).  
+
+- `r {root_folder_count}` of those are top-level (root) folders.  
+
+- The average `r {params$ministry}` SFP folder depth is `r {mean_depth}`, and the maximum is `r {max_depth}`.  
+
+### Duplicate Files
+
+Definition: same name & size as another file, located in a different folder for the same Ministry.    
+
+* Duplicate files make up approx `r {dup_percent}`% of SFP content for `r {params$ministry}`, totalling `r {dup_size_formatted}` GB.  This represents <u>`r {dist_dup}` files</u>  with at least one copy.  
+  
+Approx. <span style="color: red;">`r {dup_cost}` per month</span> could be saved by cleaning up duplicates in the `r {params$ministry}` SFP folders! 
+
+### Older Files
+
+`r {la_percent}`% of files were last accessed over 5 years ago (`r {la_5plus_count}` files).  
+
+`r {lm_percent}`% of files were last modified over 5 years ago (`r {lm_5plus_count}` files).    
+
+### Data Categories  
+  
+<div align="center"><span style="color: #234075;">**`r {params$ministry}` SFP Consumption by Data Category**</span></div>
+`r datatable(category_cost_all, rownames = FALSE, colnames = c('Category' = 1, 'Number of Files' = 2, 'Size(GB)' = 3, 'Cost per Month' = 4), options=list(columnDefs = list(list(className = 'dt-left', targets="_all"))))`  
+[List of category file types](https://apps.nrs.gov.bc.ca/int/confluence/download/attachments/73305882/Enhanced_Reporting_File_Categories_File_Extensions.pdf?version=1&modificationDate=1655238221000&api=v2) provided by the OCIO.
+
+---
+
+## About our Data Sources
+
+*   The source data for this report is collected from the OCIO and <span style="color: red;">does not include any files under 1MB</span>. This is done by design to keep the reports manageable, as including files under 1 MB would increase the report size tenfold.
+
+*   The amount of data being analyzed in the `r {params$ministry}` SFP is `r {sfpsize}` GB.
+```{r report-coverage, cache = TRUE, dependson = "grpshare", echo = FALSE}
+pie(slices,labels = lbls, col=bc_colours)
+title("Report Coverage \nMinistry SFP", line = -1)
+```
+
+*   The <u>total</u> SFP share size is obtained from a secondary source: the monthly OCIO Group Share reports. This data is for comparison purposes only: it contains the share name and size but does not go into further detail. 
+
+*   We are using primary and secondary data from the same month for analysis (Jan, Apr, Jul, Oct).
+
+---
+
+## 2023 SFP Goals - Records Management and Migration to Level Out Current Storage Costs
 
 - [Fiscal Year Chart of NRM SFP Consumption](http://nrmccp-metabase.apps.silver.devops.gov.bc.ca/public/question/dd440f8a-b7df-4faf-9eea-0a93a8bc5366)
 
 - Interested in reducing SFP consumption by migrating data to Object Storage? The Optimization Team has more information on [Confluence](https://apps.nrs.gov.bc.ca/int/confluence/display/OPTIMIZE/NRS+Object+Storage) or you can place a request through the [Jira Service Desk](https://apps.nrs.gov.bc.ca/int/jira/servicedesk/customer/portal/1/create/701) after reading our [Service Level Agreement](https://apps.nrs.gov.bc.ca/int/confluence/display/OPTIMIZE/Object+Storage+Forms?preview=/65671335/95651495/SLA_Revision_0.5.pdf). <br>
-[Contact the Optimization Team](mailto:NRIDS.Optimize@gov.bc.ca)
+
+- [Contact the Optimization Team](mailto:NRIDS.Optimize@gov.bc.ca)
 
 - Do you have questions about appropriate Records Management for your data? Visit [Government Records Services](https://www2.gov.bc.ca/gov/content/governments/services-for-government/information-management-technology/records-management) or [Contact the GRS Team](mailto:grs@gov.bc.ca)
 
