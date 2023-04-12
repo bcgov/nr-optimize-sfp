@@ -236,10 +236,6 @@ dup_size_diff <- duplicate_size - dup_size
 dup_size_formatted <- format(dup_size_diff, big.mark = ",", scientific = FALSE)
 
 dup_cost <- dollar(dup_size_diff * 2.7)
-
-#dup_orig_cost <- round(sum(dup_new$monthly_cost),2) # cost of each original file that has a duplicate
-#dup_cost_diff <- duplicate_cost - dup_orig_cost # cost of ONLY the duplicated files, excluding originals
-#dup_cost <- dollar(dup_cost_diff)
 ```
 
 ```{r count the duplicate files, include = FALSE}

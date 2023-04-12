@@ -35,7 +35,7 @@ subtitle: "Data collected on `r params$collected` for Ministry of `r params$mini
 ---
 
 ```{r setup, include=FALSE}
-knitr::opts_chunk$set(echo = TRUE)
+knitr::opts_chunk$set(echo=TRUE, warning=FALSE, message=FALSE, fig.width=7, fig.height=5, fig.path='figure/')
 library(data.table)
 library(DT)
 library(dbplyr)
@@ -351,7 +351,8 @@ Approx. <span style="color: red;">`r {dup_cost}` per month</span> could be saved
 ### Data Categories  
   
 <div align="center"><span style="color: #234075;">**`r {params$ministry}` SFP Consumption by Data Category**</span></div>
-`r datatable(category_cost_all, rownames = FALSE, colnames = c('Category' = 1, 'Number of Files' = 2, 'Size(GB)' = 3, 'Cost per Month' = 4), options=list(columnDefs = list(list(className = 'dt-left', targets="_all"))))`   
+`r datatable(category_cost_all, rownames = FALSE, colnames = c('Category' = 1, 'Number of Files' = 2, 'Size(GB)' = 3, 'Cost per Month' = 4), options=list(columnDefs = list(list(className = 'dt-left', targets="_all"))))`  
+[List of category file types](https://apps.nrs.gov.bc.ca/int/confluence/download/attachments/73305882/Enhanced_Reporting_File_Categories_File_Extensions.pdf?version=1&modificationDate=1655238221000&api=v2) provided by the OCIO.
 
 ---
 
@@ -376,7 +377,8 @@ title("Report Coverage \nMinistry SFP", line = -1)
 - [Fiscal Year Chart of NRM SFP Consumption](http://nrmccp-metabase.apps.silver.devops.gov.bc.ca/public/question/dd440f8a-b7df-4faf-9eea-0a93a8bc5366)
 
 - Interested in reducing SFP consumption by migrating data to Object Storage? The Optimization Team has more information on [Confluence](https://apps.nrs.gov.bc.ca/int/confluence/display/OPTIMIZE/NRS+Object+Storage) or you can place a request through the [Jira Service Desk](https://apps.nrs.gov.bc.ca/int/jira/servicedesk/customer/portal/1/create/701) after reading our [Service Level Agreement](https://apps.nrs.gov.bc.ca/int/confluence/display/OPTIMIZE/Object+Storage+Forms?preview=/65671335/95651495/SLA_Revision_0.5.pdf). <br>
-[Contact the Optimization Team](mailto:NRIDS.Optimize@gov.bc.ca)
+
+- [Contact the Optimization Team](mailto:NRIDS.Optimize@gov.bc.ca)
 
 - Do you have questions about appropriate Records Management for your data? Visit [Government Records Services](https://www2.gov.bc.ca/gov/content/governments/services-for-government/information-management-technology/records-management) or [Contact the GRS Team](mailto:grs@gov.bc.ca)
 
