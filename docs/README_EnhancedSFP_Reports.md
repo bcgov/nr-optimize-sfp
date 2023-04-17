@@ -24,6 +24,7 @@
 > The following files need to be in your **source** folder:
 > - **all 6** of the NRM Ministry .xlsx files for monthly group share consumption *that match the month of the report you're compiling*
 > - the NRM Ministry .csv files for shared file enhanced reporting
+>   - The enhanced data for ENV & FOR arrives as multiple .csv files and they'll need to be combined into one ENV & FOR file each. You can use this command line [example](https://www.ablebits.com/office-addins-blog/merge-multiple-csv-files-excel/#:~:text=In%20the%20command%20line%2C%20after,%2C%20merged%2Dcsv%2Dfiles.) _copy *.csv YYYY-MM-DD_MIN_SFP_Enhanced_Data.csv_ or one of your own if you have a preferred method.
 ### Reporting on the Ministry-level SFP
 >
 > -   open the file **render_enhanced_sfp_report_overview.R**
