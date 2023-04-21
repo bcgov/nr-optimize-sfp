@@ -284,7 +284,7 @@ lm_percent <- format(round(lm_percent, 1), nsmall = 1)
 source(here("scripts", glue('load_groupshare_files.R')), local = knitr::knit_global())
 ```
 
-```{r grpshare, cache = TRUE, dependson = "call-groupshare-data", include = FALSE}
+```{r grpshare, dependson = "call-groupshare-data", include = FALSE}
 grpshare <- filter(groupshare_df, share_name == {params$share})
   
 grpshare_size <- sum(grpshare$used_gb)
@@ -348,7 +348,7 @@ Approx. <span style="color: red;">`r {dup_cost}` per month</span> could be saved
 *   The source data for this report is collected from the OCIO and <span style="color: red;">does not include any files under 1MB</span>. This is done by design to keep the reports manageable, as including files under 1 MB would increase the report size tenfold.
 
 *   The amount of data being analyzed in the `r {params$share}` SFP share is `r round({share_size}, 2)` GB.
-```{r report-coverage, cache = TRUE, dependson = "grpshare", echo = FALSE}
+```{r report-coverage, dependson = "grpshare", echo = FALSE}
 pie(slices,labels = lbls, col=bc_colours)
 title("Report Coverage \nSFP Share", line = -1)
 ```
@@ -361,7 +361,9 @@ title("Report Coverage \nSFP Share", line = -1)
 
 ## 2023 SFP Goals - Records Management and Migration to Level Out Current Storage Costs
 
-- [Fiscal Year Chart of NRM SFP Consumption](http://nrmccp-metabase.apps.silver.devops.gov.bc.ca/public/question/dd440f8a-b7df-4faf-9eea-0a93a8bc5366)
+- [Fiscal Year 2023-2024 Chart of NRM SFP Consumption](http://nrmccp-metabase.apps.silver.devops.gov.bc.ca/public/question/d376a04d-2d7b-4277-8548-e90e577c131f)  
+
+- [Fiscal Year 2022-2023 Chart of NRM SFP Consumption](http://nrmccp-metabase.apps.silver.devops.gov.bc.ca/public/question/dd440f8a-b7df-4faf-9eea-0a93a8bc5366) 
 
 - Interested in reducing SFP consumption by migrating data to Object Storage? The Optimization Team has more information on [Confluence](https://apps.nrs.gov.bc.ca/int/confluence/display/OPTIMIZE/NRS+Object+Storage) or you can place a request through the [Jira Service Desk](https://apps.nrs.gov.bc.ca/int/jira/servicedesk/customer/portal/1/create/701) after reading our [Service Level Agreement](https://apps.nrs.gov.bc.ca/int/confluence/display/OPTIMIZE/Object+Storage+Forms?preview=/65671335/95651495/SLA_Revision_0.5.pdf). <br>  
 
