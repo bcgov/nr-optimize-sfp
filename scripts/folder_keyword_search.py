@@ -30,14 +30,14 @@ import csv
 
 # put cautions at the start of script execution
 print("Things to know before proceeding:")
+print("*"*35)
 print("1. You must be connected to the BCGOV network by VPN or ethernet cable.")
 print(
     "2. You need to have OneDrive set up because your search results will be saved there as a CSV file."
 )
 print(
-    "3. This script uses REGEX to find specific content within files. If you are adding new keywords to the search, you may want to visit https://www.dataquest.io/blog/regex-cheatsheet/."
+    "3. This script uses REGEX to find specific content within files. If you are adding new keywords to the search, you may want to visit https://www.dataquest.io/blog/regex-cheatsheet/.\n"
 )
-print("\n")
 
 # set the file paths
 UserName = os.environ.get("USERNAME")
@@ -66,11 +66,12 @@ keywords = [
 ]
 
 print("The keyword list is: \n")
+print("*"*35)
 for i, item in enumerate(keywords, start=0):
     print(i, item)
 
 # prompt to add keywords
-keywords_answer = input("\nDo you want to add more keywords to the existing list? ")
+keywords_answer = input("\nyes or no: Do you want to add more keywords to the existing list? ")
 
 # loop to confirm proper input
 if keywords_answer == "yes":
@@ -101,7 +102,7 @@ while keywords_answer not in ("yes", "no"):
         print("Please enter yes or no.")
 
 # prompt to remove keywords
-keywords_next = input("Do you want to remove keywords from the existing list? ")
+keywords_next = input("yes or no: Do you want to remove keywords from the existing list? ")
 
 if keywords_next == "yes":
     # remove keywords from list
@@ -117,6 +118,7 @@ if keywords_next == "yes":
             keywords.remove(word)
 
     print("\nThe updated keyword list is: ")
+    print("*"*35)
     for i, item in enumerate(keywords, start=0):
         print(i, item)
 
@@ -140,6 +142,7 @@ while keywords_next not in ("yes", "no"):
                 keywords.remove(word)
 
         print("\nThe updated keyword list is: ")
+        print("*"*35)
         for i, item in enumerate(keywords, start=0):
             print(i, item)
 
@@ -154,7 +157,7 @@ user_dir = input(
     "\nEnter the directory you want to search exactly as you have it mapped on your computer: "
 )
 
-answer = input(f"\nIs {user_dir} the correct directory to search? ")
+answer = input(f"\nyes or no: Is {user_dir} the correct directory to search? ")
 
 if answer == "yes":
     # check that the path exists
@@ -198,9 +201,7 @@ elif answer == "no":
         print("Please keep this window running in the background until complete...\n")
     else:
         print(
-            "Cannot reach ",
-            user_dir,
-            " please confirm exact spelling and/or folder permissions\n",
+            "Cannot reach {user_dir}, please confirm exact spelling and/or folder permissions\n",
         )
         # repeat directory prompt
         retry_dir = input(
@@ -403,5 +404,5 @@ searched_df.to_csv(SaveName, index=False)
 
 # advise user where their saved report is located
 print(
-    f"Your Keyword Report can be found here: {SaveName}. Please contact NRIDS.Optimize@gov.bc.ca if you require further assistance. Thank you!"
+    f"Your Keyword Report can be found here: {SaveName} \nPlease contact NRIDS.Optimize@gov.bc.ca if you require further assistance. Thank you!"
 )
