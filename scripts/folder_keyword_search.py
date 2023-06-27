@@ -24,7 +24,7 @@ import re
 from datetime import datetime
 import pandas as pd
 from docx import Document
-import slate3k as slate
+import slate3k as slate # ensure classes.py for this package has been updated in lines 58 & 59. See https://github.com/timClicks/slate/issues/43#issuecomment-533428129
 import openpyxl
 import csv
 
