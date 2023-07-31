@@ -1,0 +1,187 @@
+---
+author: "Copyright: Optimization Team 2023"
+date: "Compiled on `r format(Sys.time(), '%B %d, %Y')`"
+output: 
+  prettydoc::html_pretty:
+    theme: architect
+title: |
+  ![](GFX_OptimizationLogo-Icon_v2.png){width=350px} <br>
+  NRM H Drive Consumption by File Type Category
+subtitle: "Data collected on `r params$collected`"
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo=TRUE, fig.width=9, fig.height=7, fig.path='figure/')
+options(readr.show_col_types = FALSE)
+library(data.table)
+library(DT)
+library(dbplyr)
+library(dplyr)
+library(forcats)
+library(glue)
+library(here)
+library(htmltools)
+library(knitr)
+library(stringr)
+library(tidyverse)
+library(rmarkdown)
+library(grid)
+library(shadowtext)
+library(scales)
+library(easyr)
+library(extrafont)
+library(ggsci)
+library(ggplot2)
+
+#font_import()
+#loadfonts(device = "win")
+#theme_set(theme_bw())
+here::here()
+```
+
+```{r, date variables for plots}
+collected <- as.Date("2023-07-10")
+quarter <- "Q2"
+fiscal <- "FY23-24"
+cap <- glue('Source: OCIO Summary Report from {format(collected, "%B %d, %Y")}')
+```
+
+```{r BCGOV colour palette, include = FALSE}
+# create a bcgov colour palette
+bcgov_col <- c("#234075", "#e3a82b", "#313132", "#65799e", "#FCBA19", "#606060", "#003366", "#38598A", "#1A5A96")
+```
+
+```{r load nrm_h_data, include = FALSE}
+#h_raw_data <- fread((here("source", glue("2023-04_NRM_Enhanced_HDrive_Usage.csv", stringsAsFactors = FALSE))))
+```
+
+```{r load enhanced H drive data, include = FALSE}
+# create list of every CSV file in the folder with "U FileTypeCategory Summary Report" in the name
+hdrive.list <- list.files(here("source"), pattern = '*-U FileTypeCategory Summary Report', full.names = TRUE) 
+
+# get ministry acronyms from file names
+ministry.short <- vapply(basename(hdrive.list), `[`, 1, FUN.VALUE=character(1))
+ministry.short <- vapply(strsplit(as.character(ministry.short), split = '-U FileTypeCategory Summary Report.csv'), `[`, 1, FUN.VALUE=character(1))
+
+# correct outdated ministry acronyms
+ministry.short <- gsub('LWRS', 'WLRS', ministry.short)
+
+# assign ministry column & acronymns
+hdf.list <- lapply(hdrive.list, fread, stringsAsFactors = FALSE)
+hdf.list <- Map(cbind, hdf.list, Ministry = ministry.short)
+hdf <- do.call(rbind, hdf.list)
+
+# create dataframe of enhanced H drive data
+h_raw_data <- data.frame(hdf)
+h_raw_data <- h_raw_data %>% 
+  relocate(Ministry, .before = AppData.Size.GB)
+```
+
+```{r create nrm_h_data table, include = FALSE}
+h_info <- h_raw_data %>% 
+  mutate_if(is.double, round, 1)
+
+head(h_info)
+```
+
+```{r sum up NRM GB columns, include = FALSE}
+min_h_catsums <- h_info %>% 
+  summarise_if(is.numeric, sum, na.rm = TRUE)
+
+head(min_h_catsums)
+```
+
+```{r category names for plots, include = FALSE}
+categories <- c("AppData", "Archive", "Audio", "Backups", "CAD", "Database", "Disk Images", "Documents", "Email", "Empty Extension", "Encase", "Executables", "Images", "Map", "P2P", "Source Code", "System", "Temporary", "Video", "Web Page")
+```
+
+```{r create nrm_h_dataframe for NRM charts, include = FALSE}
+nrm_h_data <- data.frame(Size_GB = c(min_h_catsums[["AppData.Size.GB"]], min_h_catsums[["Archive.Size.GB"]], min_h_catsums[["Audio.Size.GB"]], min_h_catsums[["Backups.Size.GB"]], min_h_catsums[["CAD.Size.GB"]], min_h_catsums[["Database.Size.GB"]], min_h_catsums[["Disk.Images.Size.GB"]], min_h_catsums[["Documents.Size.GB"]], min_h_catsums[["Email.Size.GB"]], min_h_catsums[["Empty.Extension.Size.GB"]], min_h_catsums[["Encase.Size.GB"]], min_h_catsums[["Executables.Size.GB"]], min_h_catsums[["Images.Size.GB"]], min_h_catsums[["Map.Size.GB"]], min_h_catsums[["P2P.Size.GB"]], min_h_catsums[["Source.Code.Size.GB"]], min_h_catsums[["System.Size.GB"]], min_h_catsums[["Temporary.Size.GB"]], min_h_catsums[["Video.Size.GB"]], min_h_catsums[["Web.Page.Size.GB"]]), 
+  File_Category = factor(categories, levels = categories),
+  y = seq(length(categories)) * 0.9
+)
+
+nrm_h_data$File_Category = factor(categories, levels = categories[order(nrm_h_data$Size_GB)])
+```
+
+```{r step 1 Basic barchart, include = FALSE}
+total_chart <- ggplot(nrm_h_data) + 
+  geom_col(aes(Size_GB, File_Category), fill = "#234075", width = 0.7)
+
+total_chart
+```
+
+```{r step 2 Customize layout, include = FALSE}
+total_chart <- total_chart + 
+  scale_x_continuous(
+    limits = c(0, 23500),
+    breaks = seq(0, 23000, by = 2000),
+    expand = c(0, 0), # The horizontal axis does not extend to either side
+    position = "top"  # Labels are located on the top
+  ) +
+  # The vertical axis only extends upwards 
+  scale_y_discrete(expand = expansion(add = c(0, 0.5))) +
+  theme(
+    # Set background color to white
+    panel.background = element_rect(fill = "#F2F2F2"),
+    panel.grid.minor = element_blank(),
+    # Set the color and the width of the grid lines for the horizontal axis
+    panel.grid.major.x = element_line(color = "#FCBA19", size = 0.3),
+    axis.title.y=element_blank(),
+    axis.title.x=element_blank(),
+    # Only left line of the vertical axis is painted in black
+    axis.line.y.left = element_line(color = "#313132"),
+    # customize labels for the vertical & horizontal axis
+    axis.text.y =element_text(family = "Econ Sans Cnd", hjust = 0, size = 8.5),
+    axis.text.x=element_text(family = "Econ Sans Cnd", hjust = 0, size = 7)
+  )
+
+total_chart
+```
+
+```{r step 3 Add labels, include = FALSE}
+total_chart <- total_chart + 
+  geom_shadowtext(
+    data = subset(nrm_h_data, Size_GB < 1200),
+    aes(Size_GB, y = File_Category, label = Size_GB),
+    hjust = -0.1,
+    nudge_x = 0.3,
+    colour = "#234075",
+    bg.colour = "#F2F2F2",
+    bg.r = 0.2,
+    family = "Econ Sans Cnd",
+    size = 3
+  ) + 
+  geom_text(
+    data = subset(nrm_h_data, Size_GB >= 1200),
+    aes(0, y = File_Category, label = Size_GB),
+    hjust = -0.1,
+    nudge_x = 0.3,
+    colour = "#F2F2F2",
+    family = "Econ Sans Cnd",
+    size = 3
+  )
+
+total_chart
+```
+
+```{r step 4 Add annotations and final tweaks, include = FALSE}
+pdf(here('figure', glue('total_nrm_hdrive_catplot_', quarter, '_', fiscal, '.pdf')))
+
+total_chart <- total_chart + 
+  labs(x = "Size (GB)", 
+       y = "File Type Category", 
+       title = "H Drive Content by File Type Category", 
+       subtitle = "NRM Storage Consumption Analysis", 
+       caption = cap) + 
+  theme(axis.title.x=element_text(family = "Econ Sans Cnd", hjust = 0,size = 8),        
+        plot.title = element_text(family = "Econ Sans Cnd", face = "bold", hjust=c(0,0), size = 14),    
+        plot.subtitle = element_text(family = "Econ Sans Cnd", size = 12),         
+        plot.caption = element_text(family = "Econ Sans Cnd", color = "#606060", size = 10),         
+        plot.margin = margin(0.5, 1.8, 0.5, 0.5, "cm"))
+
+total_chart
+
+print(total_chart)
+dev.off()
+```
