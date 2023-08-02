@@ -13,7 +13,7 @@
 > -   GFX_OptimizationLogo-Icon_v2.png
 > 
 > The following files need to be in your **source** folder:
-> - **all 7** of the NRM Ministry .csv files for the quarterly report on H Drives. The file names look like this: **<Ministry acronym>-U FileTypeCategory Summary Report**.
+> - **all 7** of the NRM Ministry .csv files for the quarterly report on H Drives. The file names look like this: **Ministry Acronym-U FileTypeCategory Summary Report**.
 > - Make sure the source files all relate to the same timeframe, because the script reads in all files that end in *-U FileTypeCategory Summary Report*.
 >
 
