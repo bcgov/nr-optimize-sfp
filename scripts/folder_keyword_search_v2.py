@@ -59,7 +59,7 @@ keywords = [
     "SIRP|sirp",
     r"\btrauma|\bTrauma",
     r"\bbully|\bBully",
-    r"\bbullied|\Bullied",
+    r"\bbullied|\bBullied",
     r"\bharass|\bHarass",
     r"\bsuicid|\bSuicid",
     r"\bassault|\bAssault",
@@ -416,6 +416,21 @@ searched_df = pd.concat(searched_df)
 searched_df = searched_df.sort_values(by=["file_name"]).drop_duplicates(
     subset=["file_name"], keep="first"
 )
+
+# remove regex characters from keyword column
+searched_df['keyword_match'] = searched_df['keyword_match'].str.replace('\W', ' ', regex=True)
+searched_df['keyword_match'] = searched_df['keyword_match'].apply(lambda x: x.replace('6  A   6  a ', '6A'))
+searched_df['keyword_match'] = searched_df['keyword_match'].apply(lambda x: x.lstrip())
+searched_df['keyword_match'] = searched_df['keyword_match'].apply(lambda x: x.replace('ba', 'a'))
+searched_df['keyword_match'] = searched_df['keyword_match'].apply(lambda x: x.replace('bA', 'A'))
+searched_df['keyword_match'] = searched_df['keyword_match'].apply(lambda x: x.replace('bb', 'b'))
+searched_df['keyword_match'] = searched_df['keyword_match'].apply(lambda x: x.replace('bB', 'B'))
+searched_df['keyword_match'] = searched_df['keyword_match'].apply(lambda x: x.replace('bh', 'h'))
+searched_df['keyword_match'] = searched_df['keyword_match'].apply(lambda x: x.replace('bH', 'H'))
+searched_df['keyword_match'] = searched_df['keyword_match'].apply(lambda x: x.replace('bt', 't'))
+searched_df['keyword_match'] = searched_df['keyword_match'].apply(lambda x: x.replace('bT', 'T'))
+searched_df['keyword_match'] = searched_df['keyword_match'].apply(lambda x: x.replace('bs', 's'))
+searched_df['keyword_match'] = searched_df['keyword_match'].apply(lambda x: x.replace('bS', 'S'))
 
 # prepare the output file name
 
