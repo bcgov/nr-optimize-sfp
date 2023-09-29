@@ -171,7 +171,7 @@ if answer == "yes":
         print(
             f"\nSearching {user_dir} for file contents and compiling data to file, this may take several minutes or several hours depending on size."
         )
-        print("Please keep this window running in the background until complete...\n")
+        print("Please keep this window running in the background until complete.\n")
     else:
         print(
             "Cannot reach network drive. Please check your exact path name and ensure you have permission to access this drive and/or folder./n"
@@ -187,7 +187,7 @@ if answer == "yes":
                 f"\nSearching {user_dir} for file contents and compiling data to file, this may take several minutes or several hours depending on size."
             )
             print(
-                "Please keep this window running in the background until complete...\n"
+                "Please keep this window running in the background until complete.\n"
             )
         else:
             print("Cannot reach network drive. Exiting now...")
@@ -203,7 +203,7 @@ elif answer == "no":
         print(
             f"\nSearching {user_dir} for file contents and compiling data to file, this may take several minutes or several hours depending on size."
         )
-        print("Please keep this window running in the background until complete...\n")
+        print("Please keep this window running in the background until complete.\n")
     else:
         print(
             "Cannot reach {user_dir}, please confirm exact spelling and/or folder permissions\n",
@@ -219,7 +219,7 @@ elif answer == "no":
                 f"\nSearching {user_dir} for file contents and compiling data to file, this may take several minutes or several hours depending on size."
             )
             print(
-                "Please keep this window running in the background until complete...\n"
+                "Please keep this window running in the background until complete.\n"
             )
         else:
             print("Cannot reach network drive. Exiting now...")
@@ -229,7 +229,7 @@ while answer not in ("yes", "no"):
     if answer == "yes":
         # confirm the directory search
         print(
-            f"\nSearching {user_dir} for file contents and compiling data to file, this may take several minutes or several hours depending on size. /nPlease keep this window running in the background until complete...\n"
+            f"\nSearching {user_dir} for file contents and compiling data to file, this may take several minutes or several hours depending on size. /nPlease keep this window running in the background until complete.\n"
         )
     elif answer == "no":
         # repeat directory prompt
@@ -243,7 +243,7 @@ while answer not in ("yes", "no"):
                 f"\nSearching {user_dir} for file contents and compiling data to file, this may take several minutes or several hours depending on size."
             )
             print(
-                "Please keep this window running in the background until complete...\n"
+                "Please keep this window running in the background until complete."
             )
         else:
             print("Cannot reach network drive. Exiting now...")
@@ -266,6 +266,7 @@ file_names = os.listdir(user_dir)
 docx_names = [file for file in file_names if file.endswith(".docx")]
 docx_names = [os.path.join(user_dir, file) for file in docx_names]
 
+print("\nSearching Word files...\n")
 for file in docx_names:
     document = Document(file)
     for paragraph in document.paragraphs:
@@ -432,18 +433,40 @@ searched_df['keyword_match'] = searched_df['keyword_match'].apply(lambda x: x.re
 searched_df['keyword_match'] = searched_df['keyword_match'].apply(lambda x: x.replace('bs', 's'))
 searched_df['keyword_match'] = searched_df['keyword_match'].apply(lambda x: x.replace('bS', 'S'))
 
+# Convert file path into clickable format
+def make_hyperlink(value):
+    link = "file:///{}"
+    return '=HYPERLINK("%s", "%s")' % (link.format(value), value)
+
+
+searched_df['file_name'] = searched_df['file_name'].apply(make_hyperlink)
+
 # prepare the output file name
 
 # set the date formatting
 now = datetime.now()
 dt_string = now.strftime("%Y-%b-%d-%H%M%S")
 
-SaveName = f"{SavePath}/filtered_path_report_" + dt_string + ".csv"
+SaveName = f"{SavePath}/filtered_path_report_" + dt_string + ".xlsx"
 
-# send the prepared report to CSV
+# send the prepared report to file
 
-# save dataframe to file
-searched_df.to_csv(SaveName, index=False)
+# create a pandas.ExcelWriter object
+writer = pd.ExcelWriter(SaveName, engine='xlsxwriter')
+
+# write the data frame to Excel
+searched_df.to_excel(writer, sheet_name='keyword_search', index=False)
+
+# get the XlsxWriter workbook and worksheet objects
+workbook = writer.book
+worksheet = writer.sheets['keyword_search']
+
+# adjust the column widths based on the content
+for i, col in enumerate(searched_df.columns):
+    width = max(searched_df[col].apply(lambda x: len(str(x))).max(), len(col))
+    worksheet.set_column(i, i, width)
+
+writer.close()
 
 # advise user where their saved report is located
 print(
