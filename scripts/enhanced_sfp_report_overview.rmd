@@ -62,6 +62,11 @@ here::here()
 source(here("scripts", glue('custom_sfp_functions.R')), local = knitr::knit_global())
 ```
 
+```{r global, call-groupshare-data, cache = TRUE, include = FALSE}
+# load group share dataframe  from external scripts
+source(here("scripts", glue('load_groupshare_files.R')), local = knitr::knit_global())
+```
+
 ```{r load data, include = FALSE}
 
 # load csv and fill empty cells 
@@ -144,31 +149,38 @@ share_size <- formatted_sfp_data %>%
 
 ```{r calculate SFP cost, include = FALSE}
 # sum up the cost of the ministry's SFP, split out by root folder
-root_cost <- formatted_sfp_data %>%
+# sum up the cost of the ministry's SFP, split out by root folder
+root_cost <- root_size %>%
   group_by(root) %>% 
-  summarize(monthly_sfp_cost = sum(monthly_cost), object_storage_cost = sum(objstore_cost)) 
+  mutate(monthly_sfp_cost = folder_size_gb * 2.7) %>% 
+  mutate(monthly_sfp_cost = round((monthly_sfp_cost), 2)) %>%
+  mutate(monthly_objstore_cost = folder_size_gb * 0.07) %>%
+  mutate(monthly_objstore_cost = round((monthly_objstore_cost), 2))
 
 # sum up the cost of the ministry's SFP, split out by share
-share_cost <- formatted_sfp_data %>%
+share_cost <- share_size %>%
   group_by(share) %>% 
-  summarize(monthly_sfp_cost = sum(monthly_cost)) 
+  mutate(monthly_sfp_cost = folder_size_gb * 2.7) %>% 
+  mutate(monthly_sfp_cost = round((monthly_sfp_cost), 2)) %>%
+  mutate(monthly_objstore_cost = folder_size_gb * 0.07) %>%
+  mutate(monthly_objstore_cost = round((monthly_objstore_cost), 2))  
 ```
 
 ```{r create table, include = FALSE}
 table_sfp <- left_join(root_file_count, root_size, by = "root") %>%
-  left_join(., root_cost, by='root') 
+  left_join(., root_cost, by=c('root', 'folder_size_gb')) 
 
 table_sfp_share <- left_join(share_file_count, share_size, by = "share") %>%
-  left_join(., share_cost, by='share') 
+  left_join(., share_cost, by=c('share', 'folder_size_gb'))  
 ```
 
 ```{r size of entire ministry SFP in GB, include = FALSE}
-sfp_size <- sum(formatted_sfp_data$sizegb)
+sfp_size <- sum(table_sfp_share$folder_size_gb)
 sfpsize <- format(sfp_size, big.mark = ",", scientific = FALSE)
 ```
 
 ```{r SFP cost for entire ministry, include = FALSE}
-sfp_cost <- round(sum(formatted_sfp_data$monthly_cost),2)
+sfp_cost <- round(sum(table_sfp_share$monthly_sfp_cost),2)
 sfp_cost <- format(sfp_cost, big.mark = ",", scientific = FALSE)
 ```
 
@@ -181,7 +193,7 @@ sfp_folder_count <- format(sfp_folder_count, big.mark = ",", scientific = FALSE)
 
 ```{r unique root folder count, include = FALSE}
 # count the number of folders contained in the root
-root_folder_count <- unique(formatted_sfp_data$root)
+root_folder_count <- unique(table_sfp$root)
 root_folder_count <- length(root_folder_count)
 root_folder_count <- format(root_folder_count, big.mark = ",", scientific = FALSE)
 ```
@@ -267,6 +279,9 @@ files_accessed_5plus <- formatted_sfp_data %>%
 
 files_accessed_5plus <- files_accessed_5plus[(order(as.Date(files_accessed_5plus$lastaccessdate))),]
 
+la_5yr_gb <- round(sum(files_accessed_5plus$sizegb),3)
+la_5yrs_gb <- format(la_5yr_gb, big.mark = ",", scientific = FALSE)
+la_5yr_cost <- dollar(la_5yr_gb * 2.7)
 
 # files last modified more than 5 years ago
 files_modified_5plus <- formatted_sfp_data %>% 
@@ -288,11 +303,6 @@ lm_percent <- (lm_count / count_files) * 100
 
 la_percent <- format(round(la_percent, 1), nsmall = 1)
 lm_percent <- format(round(lm_percent, 1), nsmall = 1)
-```
-
-```{r global, call-groupshare-data, cache = TRUE, include = FALSE}
-# load group share dataframe  from external scripts
-source(here("scripts", glue('load_groupshare_files.R')), local = knitr::knit_global())
 ```
 
 ```{r grpshare, dependson = "call-groupshare-data", include = FALSE}
@@ -344,9 +354,9 @@ Approx. <span style="color: red;">`r {dup_cost}` per month</span> could be saved
 
 ### Older Files
 
-`r {la_percent}`% of files were last accessed over 5 years ago (`r {la_5plus_count}` files).  
+`r {la_percent}`% of files were last accessed over 5 years ago (`r {la_5plus_count}` files). This represents `r {la_5yrs_gb}` GB of data at a monthly cost of `r {la_5yr_cost}`!  
 
-`r {lm_percent}`% of files were last modified over 5 years ago (`r {lm_5plus_count}` files).    
+    
 
 ### Data Categories  
   
@@ -361,7 +371,7 @@ Approx. <span style="color: red;">`r {dup_cost}` per month</span> could be saved
 *   The source data for this report is collected from the OCIO and <span style="color: red;">does not include any files under 1MB</span>. This is done by design to keep the reports manageable, as including files under 1 MB would increase the report size tenfold.
 
 *   The amount of data being analyzed in `r {params$ministry}` SFP is `r {sfpsize}` GB.
-```{r report-coverage, dependson = "grpshare", echo = FALSE}
+```{r report-coverage, dependson = "grpshare", echo = FALSE, error = TRUE}
 pie(slices,labels = lbls, col=bc_colours)
 title("Report Coverage \nMinistry SFP", line = -1)
 ```
@@ -372,13 +382,11 @@ title("Report Coverage \nMinistry SFP", line = -1)
 
 ---
 
-## 2023 SFP Goals - Records Management and Migration to Level Out Current Storage Costs
+## SFP Reduction Goals - Records Management and Migration to Address Rising Storage Costs
 
-- [Fiscal Year 2023-2024 Chart of NRM SFP Consumption](http://nrmccp-metabase.apps.silver.devops.gov.bc.ca/public/question/d376a04d-2d7b-4277-8548-e90e577c131f)  
+- [Fiscal Year 2023-2024 Chart of NRM SFP Consumption](http://nrmccp-metabase.apps.silver.devops.gov.bc.ca/public/dashboard/709e5e4e-fd84-4653-a77d-2074b2d44110) 
 
-- [Fiscal Year 2022-2023 Chart of NRM SFP Consumption](http://nrmccp-metabase.apps.silver.devops.gov.bc.ca/public/question/dd440f8a-b7df-4faf-9eea-0a93a8bc5366) 
-
-- Interested in reducing SFP consumption by migrating data to Object Storage? The Optimization Team has more information on [Confluence](https://apps.nrs.gov.bc.ca/int/confluence/display/OPTIMIZE/NRS+Object+Storage) or you can place a request through the [Jira Service Desk](https://apps.nrs.gov.bc.ca/int/jira/servicedesk/customer/portal/1/create/701) after reading our [Service Level Agreement](https://apps.nrs.gov.bc.ca/int/confluence/display/OPTIMIZE/Object+Storage+Forms?preview=/65671335/95651495/SLA_Revision_0.5.pdf). <br>
+- Interested in reducing SFP consumption by migrating data to Object Storage? The Optimization Team has more information on [Confluence](https://apps.nrs.gov.bc.ca/int/confluence/display/OPTIMIZE/NRM+Object+Storage+Service) or you can place a request through the [Jira Service Desk](https://apps.nrs.gov.bc.ca/int/jira/servicedesk/customer/portal/1/create/701) after reading our [Service Level Agreement](https://apps.nrs.gov.bc.ca/int/confluence/display/OPTIMIZE/Object+Storage+Forms?preview=/65671335/133730673/SLA_Revision_0.6.pdf). <br>
 
 - [Contact the Optimization Team](mailto:NRIDS.Optimize@gov.bc.ca)
 
@@ -426,8 +434,8 @@ freeze.panes(2)
 freeze.panes(3)
 
 # set custom column widths for all sheets
-setColWidths(excel, sheet = 1, cols = c(1:5), widths = c(75, 20, 20, 20))
-setColWidths(excel, sheet = 2, cols = c(1:5), widths = c(75, 20, 20, 20, 20))
+setColWidths(excel, sheet = 1, cols = c(1:5), widths = c(75, 20, 20, 20, 25))
+setColWidths(excel, sheet = 2, cols = c(1:5), widths = c(75, 20, 20, 20, 25))
 #setColWidths(excel, sheet = 3, cols = c(1:8), widths = c(50, 75, 20, 20, 20, 20, 20, 20))
 #setColWidths(excel, sheet = 4, cols = c(1:6), widths = c(50, 75, 20, 20, 20, 20))
 #setColWidths(excel, sheet = 5, cols = c(1:6), widths = c(50, 75, 20, 20, 20, 20))
@@ -436,6 +444,7 @@ setColWidths(excel, sheet = 3, c(1:2), widths = c(20, 20))
 # set currency format on column
 sty1 = createStyle(numFmt="$0.00")
 addStyle(excel, sheet = 1, sty1, rows=2:(nrow(table_sfp)+1), cols=4)
+addStyle(excel, sheet = 1, sty1, rows=2:(nrow(table_sfp)+1), cols=5)
 addStyle(excel, sheet = 2, sty1, rows=2:(nrow(table_sfp)+1), cols=4)
 addStyle(excel, sheet = 2, sty1, rows=2:(nrow(table_sfp)+1), cols=5)
 #addStyle(excel, sheet = 3, sty1, rows=2:(nrow(table_sfp)+1), cols=4)

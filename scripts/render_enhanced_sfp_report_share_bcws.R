@@ -5,6 +5,8 @@ library(rmarkdown)
 # You can find the correct directory by typing Sys.getenv("RSTUDIO_PANDOC")
 Sys.setenv(RSTUDIO_PANDOC="C:/Program Files/RStudio/bin/")
 
+source("scripts/load_groupshare_files.R")
+
 # function to render parameters and save html output to file
 render_report = function(data, ministry, share, quarter, fiscal, collected) {
   rmarkdown::render(

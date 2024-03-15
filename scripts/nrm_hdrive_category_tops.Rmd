@@ -1,0 +1,483 @@
+---
+author: 'Copyright: Optimization Team 2023'
+date: "Compiled on `r format(Sys.time(), '%B %d, %Y')`"
+output: 
+  prettydoc::html_pretty:
+    theme: architect
+    css: "style.css"
+params:
+  ministry:
+    label: "Ministry Name:"
+    value: AF
+    input: select
+    choices: [AF, BCWS, EMLI, ENV, FOR, IRR, WLRS]
+  month:
+    label: "Month data was collected:"
+    value: January
+    input: select
+    choices: [January, February, March, April, May, June, July, August, September, October, November, December]
+  year:
+    label: "Year data was collected:"
+    value: 2023
+    input: select
+    choices: [2023, 2024, 2022026]
+title: |
+  ![](GFX_OptimizationLogo-Icon_v2.png){width=350px} <br>
+  Enhanced H Drive Quarterly Report <br> Categorical Consumption for `r params$ministry` 
+subtitle: "Data collected in `r params$month` `r params$year`"
+---
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+options(readr.show_col_types = FALSE)
+library(data.table)
+library(DT)
+library(dbplyr)
+library(dplyr)
+library(forcats)
+library(glue)
+library(here)
+library(htmltools)
+library(knitr)
+library(purrr)
+library(scales)
+library(stringr)
+library(tidyverse)
+library(rmarkdown)
+library(ggforce)
+here::here()
+```
+
+```{r set system environment, include = FALSE}
+# This chunk is helpful if you're using an IDE like VS Code
+# You can find the correct directory by typing Sys.getenv("RSTUDIO_PANDOC")
+Sys.setenv(RSTUDIO_PANDOC="C:/Program Files/RStudio/bin/pandoc")
+```
+
+```{r load data, include = FALSE}
+# create list of every CSV file in the folder with "U FileTypeCategory Summary Report" in the name
+hdrive.list <- list.files(here("source"), pattern = '*-U FileTypeCategory Summary Report', full.names = TRUE) 
+
+# get ministry acronyms from file names
+ministry.short <- vapply(basename(hdrive.list), `[`, 1, FUN.VALUE=character(1))
+ministry.short <- vapply(strsplit(as.character(ministry.short), split = '-U FileTypeCategory Summary Report.csv'), `[`, 1, FUN.VALUE=character(1))
+
+# correct outdated ministry acronyms
+ministry.short <- gsub('LWRS', 'WLRS', ministry.short)
+
+# assign ministry column & acronymns
+hdf.list <- lapply(hdrive.list, fread, stringsAsFactors = FALSE)
+hdf.list <- Map(cbind, hdf.list, Ministry = ministry.short)
+hdf <- do.call(rbind, hdf.list)
+
+# create dataframe of enhanced H drive data
+h_raw_data <- data.frame(hdf)
+h_raw_data <- h_raw_data %>% 
+  relocate(Ministry, .before = AppData.Size.GB)
+```
+
+```{r create data table, include = FALSE}
+h_data_table <- h_raw_data %>% 
+  mutate_if(is.double, round, 2)
+```
+
+```{r, ministry filter, include = FALSE}
+min_table <- h_data_table %>% 
+  filter(Ministry == {params$ministry})
+
+# remove periods from column names
+names(min_table) <- gsub("\\.", "\\_", names(min_table))
+
+num_users <- nrow(min_table)
+```
+
+```{r, category tables, include = FALSE}
+AppData <- min_table %>% 
+  mutate('Cost' = round(AppData_Size_GB * 2.7, digits = 2)) %>% 
+  select(User, AppData_File_Count, AppData_Size_GB, Cost)
+AppData <- AppData[order(-AppData$AppData_Size_GB),]
+
+Archive <- min_table %>% 
+  mutate('Cost' = round(Archive_Size_GB * 2.7, digits = 2)) %>% 
+  select(User, Archive_File_Count, Archive_Size_GB, Cost)
+Archive <- Archive[order(-Archive$Archive_Size_GB),]
+
+Audio <- min_table %>% 
+  mutate('Cost' = round(Audio_Size_GB * 2.7, digits = 2)) %>% 
+  select(User, Audio_File_Count, Audio_Size_GB, Cost)
+Audio <- Audio[order(-Audio$Audio_Size_GB),]
+
+Backups <- min_table %>% 
+  mutate('Cost' = round(Backups_Size_GB * 2.7, digits = 2)) %>% 
+  select(User, Backups_File_Count, Backups_Size_GB, Cost)
+Backups <- Backups[order(-Backups$Backups_Size_GB),]
+
+CAD <- min_table %>% 
+  mutate('Cost' = round(CAD_Size_GB * 2.7, digits = 2)) %>% 
+  select(User, CAD_File_Count, CAD_Size_GB, Cost)
+CAD <- CAD[order(-CAD$CAD_Size_GB),]
+
+Database <- min_table %>% 
+  mutate('Cost' = round(Database_Size_GB * 2.7, digits = 2)) %>% 
+  select(User, Database_File_Count, Database_Size_GB, Cost)
+Database <- Database[order(-Database$Database_Size_GB),]
+
+Disk_Images <- min_table %>% 
+  mutate('Cost' = round(Disk_Images_Size_GB * 2.7, digits = 2)) %>% 
+  select(User, Disk_Images_File_Count, Disk_Images_Size_GB, Cost)
+Disk_Images <- Disk_Images[order(-Disk_Images$Disk_Images_Size_GB),]
+
+Documents <- min_table %>% 
+  mutate('Cost' = round(Documents_Size_GB * 2.7, digits = 2)) %>% 
+  select(User, Documents_File_Count, Documents_Size_GB, Cost)
+Documents <- Documents[order(-Documents$Documents_Size_GB),]
+
+Email <- min_table %>% 
+  mutate('Cost' = round(Email_Size_GB * 2.7, digits = 2)) %>% 
+  select(User, Email_File_Count, Email_Size_GB, Cost)
+Email <- Email[order(-Email$Email_Size_GB),]
+
+Empty_Extension <- min_table %>% 
+  mutate('Cost' = round(Empty_Extension_Size_GB * 2.7, digits = 2)) %>% 
+  select(User, Empty_Extension_File_Count, Empty_Extension_Size_GB, Cost)
+Empty_Extension <- Empty_Extension[order(-Empty_Extension$Empty_Extension_Size_GB),]
+
+Encase <- min_table %>% 
+  mutate('Cost' = round(Encase_Size_GB * 2.7, digits = 2)) %>% 
+  select(User, Encase_File_Count, Encase_Size_GB, Cost)
+Encase <- Encase[order(-Encase$Encase_Size_GB),]
+
+Executables <- min_table %>% 
+  mutate('Cost' = round(Executables_Size_GB * 2.7, digits = 2)) %>% 
+  select(User, Executables_File_Count, Executables_Size_GB, Cost)
+Executables <- Executables[order(-Executables$Executables_Size_GB),]
+
+Images <- min_table %>%
+  mutate('Cost' = round(Images_Size_GB * 2.7, digits = 2)) %>% 
+  select(User, Images_File_Count, Images_Size_GB, Cost)
+Images <- Images[order(-Images$Images_Size_GB),]
+
+Map <- min_table %>% 
+  mutate('Cost' = round(Map_Size_GB * 2.7, digits = 2)) %>% 
+  select(User, Map_File_Count, Map_Size_GB, Cost)
+Map <- Map[order(-Map$Map_Size_GB),]
+
+P2P <- min_table %>% 
+  mutate('Cost' = round(P2P_Size_GB * 2.7, digits = 2)) %>% 
+  select(User, P2P_File_Count, P2P_Size_GB, Cost)
+P2P <- P2P[order(-P2P$P2P_Size_GB),]
+
+Source_Code <- min_table %>% 
+  mutate('Cost' = round(Source_Code_Size_GB * 2.7, digits = 2)) %>% 
+  select(User, Source_Code_File_Count, Source_Code_Size_GB, Cost)
+Source_Code <- Source_Code[order(-Source_Code$Source_Code_Size_GB),]
+
+System <- min_table %>% 
+  mutate('Cost' = round(System_Size_GB * 2.7, digits = 2)) %>% 
+  select(User, System_File_Count, System_Size_GB, Cost)
+System <- System[order(-System$System_Size_GB),]
+
+Temporary <- min_table %>% 
+  mutate('Cost' = round(Temporary_Size_GB * 2.7, digits = 2)) %>% 
+  select(User, Temporary_File_Count, Temporary_Size_GB, Cost)
+Temporary <- Temporary[order(-Temporary$Temporary_Size_GB),]
+
+Video <- min_table %>% 
+  mutate('Cost' = round(Video_Size_GB * 2.7, digits = 2)) %>% 
+  select(User, Video_File_Count, Video_Size_GB, Cost)
+Video <- Video[order(-Video$Video_Size_GB),]
+
+Web_Page <- min_table %>% 
+  mutate('Cost' = round(Web_Page_Size_GB * 2.7, digits = 2)) %>% 
+  select(User, Web_Page_File_Count, Web_Page_Size_GB, Cost)
+Web_Page <- Web_Page[order(-Web_Page$Web_Page_Size_GB),]
+```
+
+```{r, ministry categorical tables, include = FALSE}
+min_AppData <- data.frame(list("Category" = "App Data",
+                    "File count" = sum(AppData$AppData_File_Count),       
+                    "Total size (GB)" = sum(AppData$AppData_Size_GB),
+                    "Total cost" = dollar(sum(AppData$Cost)),
+                    "Avg size (GB) per user" = round(sum((AppData$AppData_Size_GB)/nrow(AppData)),3))
+                    )
+
+min_Archive <- data.frame(list("Category" = "Archive",
+                    "File count" = sum(Archive$Archive_File_Count),       
+                    "Total size (GB)" = sum(Archive$Archive_Size_GB),
+                    "Total cost" = dollar(sum(Archive$Cost)),
+                    "Avg size (GB) per user" = round(sum((Archive$Archive_Size_GB)/nrow(Archive)),3))
+                    )
+
+min_Audio <- data.frame(list("Category" = "Audio",
+                  "File count" = sum(Audio$Audio_File_Count),       
+                  "Total size (GB)" = sum(Audio$Audio_Size_GB), 
+                  "Total cost" = dollar(sum(Audio$Cost)),
+                  "Avg size (GB) per user" = round(sum((Audio$Audio_Size_GB)/nrow(Audio)),3))
+                  )
+
+min_Backups <- data.frame(list("Category" = "Backups",
+                    "File count" = sum(Backups$Backups_File_Count),       
+                    "Total size (GB)" = sum(Backups$Backups_Size_GB), 
+                    "Total cost" = dollar(sum(Backups$Cost)),
+                    "Avg size (GB) per user" = round(sum((Backups$Backups_Size_GB)/nrow(Backups)),3))
+                    )
+
+min_CAD <- data.frame(list("Category" = "CAD",
+                "File count" = sum(CAD$CAD_File_Count),       
+                "Total size (GB)" = dollar(sum(CAD$CAD_Size_GB)), 
+                "Total cost" = sum(CAD$Cost),
+                "Avg size (GB) per user" = round(sum((CAD$CAD_Size_GB)/nrow(CAD)),3))
+                )
+
+min_Database <- data.frame(list("Category" = "Database",
+                     "File count" = sum(Database$Database_File_Count),       
+                     "Total size (GB)" = sum(Database$Database_Size_GB),
+                     "Total cost" = sum(Database$Cost),
+                     "Avg size (GB) per user" = round(sum((Database$Database_Size_GB)/nrow(Database)),3))
+                     )
+
+min_Disk_Images <- data.frame(list("Category" = "Disk Images",
+                        "File count" = sum(Disk_Images$Disk_Images_File_Count),       
+                        "Total size (GB)" = sum(Disk_Images$Disk_Images_Size_GB),
+                        "Total cost" = dollar(sum(Disk_Images$Cost)),
+                        "Avg size (GB) per user" = round(sum((Disk_Images$Disk_Images_Size_GB)/nrow(Disk_Images)),3))
+                        )
+
+min_Documents <- data.frame(list("Category" = "Documents",
+                        "File count" = sum(Documents$Documents_Images_File_Count),       
+                        "Total size (GB)" = sum(Documents$Documents_Size_GB),  
+                        "Total cost" = dollar(sum(Documents$Cost)),
+                        "Avg size (GB) per user" = round(sum((Documents$Documents_Size_GB)/nrow(Documents)),3))
+                        )
+
+min_Email <- data.frame(list("Category" = "Email",
+                  "File count" = sum(Email$Email_File_Count),       
+                  "Total size (GB)" = sum(Email$Email_Size_GB), 
+                  "Total cost" = dollar(sum(Email$Cost)),
+                  "Avg size (GB) per user" = round(sum((Email$Email_Size_GB)/nrow(Email)),3))
+                  )
+
+min_Empty_Extension <- data.frame(list("Category" = "Empty Extension",
+                             "File count" = sum(Empty_Extension$Empty_Extension_File_Count),       
+                             "Total size (GB)" = sum(Empty_Extension$Empty_Extension_Size_GB), 
+                             "Total cost" = dollar(sum(Empty_Extension$Cost)),
+                             "Avg size (GB) per user" = round(sum((Empty_Extension$Empty_Extension_Size_GB)/nrow(Empty_Extension)),3))
+                             )
+
+min_Encase <- data.frame(list("Category" = "Encase",
+                   "File count" = sum(Encase$Encase_File_Count),       
+                   "Total size (GB)" = sum(Encase$Encase_Size_GB),  
+                   "Total cost" = dollar(sum(Encase$Cost)),
+                   "Avg size (GB) per user" = round(sum((Encase$Encase_Size_GB)/nrow(Encase)),3))
+                    )
+
+min_Executables <- data.frame(list("Category" = "Executables",
+                        "File count" = sum(Executables$Executables_File_Count),       
+                        "Total size (GB)" = sum(Executables$Executables_Size_GB),
+                        "Total cost" = dollar(sum(Executables$Cost)),
+                        "Avg size (GB) per user" = round(sum((Executables$Executables_Size_GB)/nrow(Executables)),3))
+                        )
+
+min_Images <- data.frame(list("Category" = "Images",
+                   "File count" = sum(Images$Images_File_Count),       
+                   "Total size (GB)" = sum(Images$Images_Size_GB),
+                   "Total cost" = dollar(sum(Images$Cost)),
+                   "Avg size (GB) per user" = round(sum((Images$Images_Size_GB)/nrow(Images)),3))
+                   )
+
+min_Map <- data.frame(list("Category" = "Map",
+                "File count" = sum(Map$Map_File_Count),       
+                "Total size (GB)" = sum(Map$Map_Size_GB),  
+                "Total cost" = dollar(sum(Map$Cost)),
+                "Avg size (GB) per user" = round(sum((Map$Map_Size_GB)/nrow(Map)),3))
+                )
+
+min_P2P <- data.frame(list("Category" = "P2P",
+                "File count" = sum(P2P$P2P_File_Count),       
+                "Total size (GB)" = sum(P2P$P2P_Size_GB), 
+                "Total cost" = dollar(sum(P2P$Cost)),
+                "Avg size (GB) per user" = round(sum((P2P$P2P_Size_GB)/nrow(P2P)),3))
+                )
+
+min_Source_Code <- data.frame(list("Category" = "Source Code",
+                        "File count" = sum(Source_Code$Source_Code_File_Count),       
+                        "Total size (GB)" = sum(Source_Code$Source_Code_Size_GB),
+                        "Total cost" = dollar(sum(Source_Code$Cost)),
+                        "Avg size (GB) per user" = round(sum((Source_Code$Source_Code_Size_GB)/nrow(Source_Code)),3))
+                        )
+
+min_System <- data.frame(list("Category" = "System",
+                   "File count" = sum(System$System_File_Count),       
+                   "Total size (GB)" = sum(System$System_Size_GB), 
+                   "Total cost" = dollar(sum(System$Cost)),
+                   "Avg size (GB) per user" = round(sum((System$System_Size_GB)/nrow(System)),3))
+                   )
+
+min_Temporary <- data.frame(list("Category" = "Temporary",
+                      "File count" = sum(Temporary$Temporary_File_Count),       
+                      "Total size (GB)" = sum(Temporary$Temporary_Size_GB),
+                      "Total cost" = dollar(sum(Temporary$Cost)),
+                      "Avg size (GB) per user" = round(sum((Temporary$Temporary_Size_GB)/nrow(Temporary)),3))
+                      )
+
+min_Video <- data.frame(list("Category" = "Video",
+                  "File count" = sum(Video$Video_File_Count),       
+                  "Total size (GB)" = sum(Video$Video_Size_GB), 
+                  "Total cost" = dollar(sum(Video$Cost)),
+                  "Avg size (GB) per user" = round(sum((Video$Video_Size_GB)/nrow(Video)),3))
+                  )
+
+min_Web_Page <- data.frame(list("Category" = "Web Page",
+                     "File count" = sum(Web_Page$Web_Page_File_Count),       
+                     "Total size (GB)" = sum(Web_Page$Web_Page_Size_GB),
+                     "Total cost" = dollar(sum(Web_Page$Cost)),
+                     "Avg size (GB) per user" = round(sum((Web_Page$Web_Page_Size_GB)/nrow(Web_Page)),3))
+                     )
+```
+
+```{r, category lists to dataframe, include = FALSE}
+min_category_df <- rbind(min_AppData, min_Archive, min_Audio, min_Backups, min_CAD, min_Database, min_Disk_Images, min_Email, min_Empty_Extension, min_Encase, min_Executables, min_Images, min_Map, min_P2P, min_Source_Code, min_System, min_Temporary, min_Video, min_Web_Page)
+```
+
+```{r, categorical top ten search, include = FALSE}
+AppData5 <- AppData[1:5, ]
+AppData5$Cost <- dollar(AppData5$Cost)
+
+Archive5 <- Archive[1:5, ]
+Archive5$Cost <- dollar(Archive5$Cost)
+
+Audio5 <- Audio[1:5, ]
+Audio5$Cost <- dollar(Audio5$Cost)
+
+Backups5 <- Backups[1:5, ] 
+Backups5$Cost <- dollar(Backups5$Cost)
+
+CAD5 <- CAD[1:5, ] 
+CAD5$Cost <- dollar(CAD5$Cost)
+
+Database5 <- Database[1:5, ] 
+Database5$Cost <- dollar(Database5$Cost)
+
+Disk_Images5 <- Disk_Images[1:5, ] 
+Disk_Images5$Cost <- dollar(Disk_Images5$Cost)
+
+Documents5 <- Documents[1:5, ] 
+Documents5$Cost <- dollar(Documents5$Cost)
+
+Email5 <- Email[1:5, ] 
+Email5$Cost <- dollar(Email5$Cost)
+
+Empty_Extension5 <- Empty_Extension[1:5, ]
+Empty_Extension5$Cost <- dollar(Empty_Extension5$Cost)
+
+Encase5 <- Encase[1:5, ] 
+Encase5$Cost <- dollar(Encase5$Cost)
+
+Executables5 <- Executables[1:5, ] 
+Executables5$Cost <- dollar(Executables5$Cost)
+
+Images5 <- Images[1:5, ] 
+Images5$Cost <- dollar(Images5$Cost)
+
+Map5 <- Map[1:5, ] 
+Map5$Cost <- dollar(Map5$Cost)
+
+P2P5 <- P2P[1:5, ] 
+P2P5$Cost <- dollar(P2P5$Cost)
+
+Source_Code5 <- Source_Code[1:5, ] 
+Source_Code5$Cost <- dollar(Source_Code5$Cost)
+
+System5 <- System[1:5, ] 
+System5$Cost <- dollar(System5$Cost)
+
+Temporary5 <- Temporary[1:5, ] 
+Temporary5$Cost <- dollar(Temporary5$Cost)
+
+Video5 <- Video[1:5, ] 
+Video5$Cost <- dollar(Video5$Cost)
+
+Web_Page5 <- Web_Page[1:5, ] 
+Web_Page5$Cost <- dollar(Web_Page5$Cost)
+```
+
+```{css, echo=FALSE}
+h3 {
+  text-align: center;
+}
+```
+### Ministry Categorical Averages
+<div align="center">Based on `r {num_users}` IDIRs listed in the `r {params$ministry}` enhanced H drive report.</div>
+<br>
+
+<div align="center"><span style="color: #234075;">Average Consumption per H Drive Category</span></div>
+`r datatable(min_category_df, rownames = FALSE, colnames = c('Category' = 1, 'File Count' = 2, 'Total Size(GB)' = 3, 'Cost' = 4, 'Avg GB per User' = 5), options=list(columnDefs = list(list(className = 'dt-left', targets="_all"))))`
+<br>
+<br>
+
+### Top 5 Consumers per H Drive Category
+  
+<div align="center"><span style="color: #234075;">**App Data**</span></div>
+`r datatable(AppData5, rownames = FALSE, colnames = c('User' = 1, 'File Count' = 2, 'Size(GB)' = 3, 'Cost' = 4), options=list(dom = 't', columnDefs = list(list(className = 'dt-left', targets="_all"))))` 
+<br>
+<div align="center"><span style="color: #234075;">**Archive**</span></div>
+`r datatable(Archive5, rownames = FALSE, colnames = c('User' = 1, 'File Count' = 2, 'Size(GB)' = 3, 'Cost' = 4), options=list(dom = 't', columnDefs = list(list(className = 'dt-left', targets="_all"))))` 
+<br>
+<div align="center"><span style="color: #234075;">**Audio**</span></div>
+`r datatable(Audio5, rownames = FALSE, colnames = c('User' = 1, 'File Count' = 2, 'Size(GB)' = 3, 'Cost' = 4), options=list(dom = 't', columnDefs = list(list(className = 'dt-left', targets="_all"))))` 
+<br>
+<div align="center"><span style="color: #234075;">**Backups**</span></div>
+`r datatable(Backups5, rownames = FALSE, colnames = c('User' = 1, 'File Count' = 2, 'Size(GB)' = 3, 'Cost' = 4), options=list(dom = 't', columnDefs = list(list(className = 'dt-left', targets="_all"))))` 
+<br>
+<div align="center"><span style="color: #234075;">**CAD**</span></div>
+`r datatable(CAD5, rownames = FALSE, colnames = c('User' = 1, 'File Count' = 2, 'Size(GB)' = 3, 'Cost' = 4), options=list(dom = 't', columnDefs = list(list(className = 'dt-left', targets="_all"))))` 
+<br>
+<div align="center"><span style="color: #234075;">**Database**</span></div>
+`r datatable(Database5, rownames = FALSE, colnames = c('User' = 1, 'File Count' = 2, 'Size(GB)' = 3, 'Cost' = 4), options=list(dom = 't', columnDefs = list(list(className = 'dt-left', targets="_all"))))` 
+<br>
+<div align="center"><span style="color: #234075;">**Disk Images**</span></div>
+`r datatable(Disk_Images5, rownames = FALSE, colnames = c('User' = 1, 'File Count' = 2, 'Size(GB)' = 3, 'Cost' = 4), options=list(dom = 't', columnDefs = list(list(className = 'dt-left', targets="_all"))))` 
+<br>
+<div align="center"><span style="color: #234075;">**Documents**</span></div>
+`r datatable(Documents5, rownames = FALSE, colnames = c('User' = 1, 'File Count' = 2, 'Size(GB)' = 3, 'Cost' = 4), options=list(dom = 't', columnDefs = list(list(className = 'dt-left', targets="_all"))))` 
+<br>
+<div align="center"><span style="color: #234075;">**Email**</span></div>
+`r datatable(Email5, rownames = FALSE, colnames = c('User' = 1, 'File Count' = 2, 'Size(GB)' = 3, 'Cost' = 4), options=list(dom = 't', columnDefs = list(list(className = 'dt-left', targets="_all"))))` 
+<br>
+<div align="center"><span style="color: #234075;">**Empty Extension**</span></div>
+`r datatable(Empty_Extension5, rownames = FALSE, colnames = c('User' = 1, 'File Count' = 2, 'Size(GB)' = 3, 'Cost' = 4), options=list(dom = 't', columnDefs = list(list(className = 'dt-left', targets="_all"))))` 
+<br>
+<div align="center"><span style="color: #234075;">**Encase**</span></div>
+`r datatable(Encase5, rownames = FALSE, colnames = c('User' = 1, 'File Count' = 2, 'Size(GB)' = 3, 'Cost' = 4), options=list(dom = 't', columnDefs = list(list(className = 'dt-left', targets="_all"))))` 
+<br>
+<div align="center"><span style="color: #234075;">**Executables**</span></div>
+`r datatable(Executables5, rownames = FALSE, colnames = c('User' = 1, 'File Count' = 2, 'Size(GB)' = 3, 'Cost' = 4), options=list(dom = 't', columnDefs = list(list(className = 'dt-left', targets="_all"))))` 
+<br>
+<div align="center"><span style="color: #234075;">**Images**</span></div>
+`r datatable(Images5, rownames = FALSE, colnames = c('User' = 1, 'File Count' = 2, 'Size(GB)' = 3, 'Cost' = 4), options=list(dom = 't', columnDefs = list(list(className = 'dt-left', targets="_all"))))` 
+<br>
+<div align="center"><span style="color: #234075;">**Map**</span></div>
+`r datatable(Map5, rownames = FALSE, colnames = c('User' = 1, 'File Count' = 2, 'Size(GB)' = 3, 'Cost' = 4), options=list(dom = 't', columnDefs = list(list(className = 'dt-left', targets="_all"))))` 
+<br>
+<div align="center"><span style="color: #234075;">**P2P**</span></div>
+`r datatable(P2P5, rownames = FALSE, colnames = c('User' = 1, 'File Count' = 2, 'Size(GB)' = 3, 'Cost' = 4), options=list(dom = 't', columnDefs = list(list(className = 'dt-left', targets="_all"))))` 
+<br>
+<div align="center"><span style="color: #234075;">**Source Code**</span></div>
+`r datatable(Source_Code5, rownames = FALSE, colnames = c('User' = 1, 'File Count' = 2, 'Size(GB)' = 3, 'Cost' = 4), options=list(dom = 't', columnDefs = list(list(className = 'dt-left', targets="_all"))))` 
+<br>
+<div align="center"><span style="color: #234075;">**System**</span></div>
+`r datatable(System5, rownames = FALSE, colnames = c('User' = 1, 'File Count' = 2, 'Size(GB)' = 3, 'Cost' = 4), options=list(dom = 't', columnDefs = list(list(className = 'dt-left', targets="_all"))))` 
+<br>
+<div align="center"><span style="color: #234075;">**Temporary**</span></div>
+`r datatable(Temporary5, rownames = FALSE, colnames = c('User' = 1, 'File Count' = 2, 'Size(GB)' = 3, 'Cost' = 4), options=list(dom = 't', columnDefs = list(list(className = 'dt-left', targets="_all"))))` 
+<br>
+<div align="center"><span style="color: #234075;">**Video**</span></div>
+`r datatable(Video5, rownames = FALSE, colnames = c('User' = 1, 'File Count' = 2, 'Size(GB)' = 3, 'Cost' = 4), options=list(dom = 't', columnDefs = list(list(className = 'dt-left', targets="_all"))))` 
+<br>
+<div align="center"><span style="color: #234075;">**Web Page**</span></div>
+`r datatable(Web_Page5, rownames = FALSE, colnames = c('User' = 1, 'File Count' = 2, 'Size(GB)' = 3, 'Cost' = 4), options=list(dom = 't', columnDefs = list(list(className = 'dt-left', targets="_all"))))` 
+<br>
+<br>
+[List of category file types](https://apps.nrs.gov.bc.ca/int/confluence/download/attachments/73305882/Enhanced_Reporting_File_Categories_File_Extensions.pdf?version=1&modificationDate=165523822500&api=v2) provided by the OCIO.
+
+---
+<span style="color: #8B0000;">Privacy notice:</span> The source data used in these reports does not list individual file names (with or without their extension type), nor does it point to specific folder paths within a user's H drive. 

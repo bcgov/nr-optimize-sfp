@@ -168,7 +168,7 @@ table_pathsize_tallyfiles$folderdepth <- str_count(table_pathsize_tallyfiles$pat
 path_depth <- stri_count_fixed("{params$share}", "/")
 
 # subtract path parameter count from each path name's count for a folder depth that starts at the desired search folder
-table_pathsize_tallyfiles$folderdepth <- table_pathsize_tallyfiles$folderdepth - path_depth 
+table_pathsize_tallyfiles$folderdepth <- (table_pathsize_tallyfiles$folderdepth - path_depth) - 5
 
 table_pathsize_tallyfiles <- table_pathsize_tallyfiles[order(-table_pathsize_tallyfiles$"monthly cost"),] %>% 
   select(path, folderdepth, "number of files", "folder size gb", "monthly cost", "object storage cost")
@@ -334,8 +334,6 @@ Approx. <span style="color: red;">`r {dup_cost}` per month</span> could be saved
 
 `r {la_percent}`% of files were last accessed over 5 years ago (`r {la_5plus_count}` files).  
 
-`r {lm_percent}`% of files were last modified over 5 years ago (`r {lm_5plus_count}` files).    
-
 ### Data Categories
   
 <div align="center"><span style="color: #234075;">**`r {params$share}` Consumption by Data Category**</span></div>
@@ -360,13 +358,11 @@ title("Report Coverage \nSFP Share", line = -1)
 
 ---
 
-## 2023 SFP Goals - Records Management and Migration to Level Out Current Storage Costs
+## SFP Reduction Goals - Records Management and Migration to Address Rising Storage Costs
 
-- [Fiscal Year 2023-2024 Chart of NRM SFP Consumption](http://nrmccp-metabase.apps.silver.devops.gov.bc.ca/public/question/d376a04d-2d7b-4277-8548-e90e577c131f)  
+- [Fiscal Year 2023-2024 Chart of NRM SFP Consumption](http://nrmccp-metabase.apps.silver.devops.gov.bc.ca/public/dashboard/709e5e4e-fd84-4653-a77d-2074b2d44110) 
 
-- [Fiscal Year 2022-2023 Chart of NRM SFP Consumption](http://nrmccp-metabase.apps.silver.devops.gov.bc.ca/public/question/dd440f8a-b7df-4faf-9eea-0a93a8bc5366) 
-
-- Interested in reducing SFP consumption by migrating data to Object Storage? The Optimization Team has more information on [Confluence](https://apps.nrs.gov.bc.ca/int/confluence/display/OPTIMIZE/NRS+Object+Storage) or you can place a request through the [Jira Service Desk](https://apps.nrs.gov.bc.ca/int/jira/servicedesk/customer/portal/1/create/701) after reading our [Service Level Agreement](https://apps.nrs.gov.bc.ca/int/confluence/display/OPTIMIZE/Object+Storage+Forms?preview=/65671335/95651495/SLA_Revision_0.5.pdf). <br>  
+- Interested in reducing SFP consumption by migrating data to Object Storage? The Optimization Team has more information on [Confluence](https://apps.nrs.gov.bc.ca/int/confluence/display/OPTIMIZE/NRM+Object+Storage+Service) or you can place a request through the [Jira Service Desk](https://apps.nrs.gov.bc.ca/int/jira/servicedesk/customer/portal/1/create/701) after reading our [Service Level Agreement](https://apps.nrs.gov.bc.ca/int/confluence/display/OPTIMIZE/Object+Storage+Forms?preview=/65671335/133730673/SLA_Revision_0.6.pdf). <br>
 
 - [Contact the Optimization Team](mailto:NRIDS.Optimize@gov.bc.ca)
 
@@ -385,9 +381,8 @@ excel <- createWorkbook(output_excel)
 firstSheet = "Folder Details"
 secondSheet = "Duplicate Files"
 thirdSheet = "Last Accessed 5+ Years"
-fourthSheet = "Last Modified 5+ Years"
-fifthSheet = "Category Details by Folder"
-sixthSheet = "Category Extensions"
+fourthSheet = "Category Details by Folder"
+fifthSheet = "Category Extensions"
 
 # add worksheets to workbook
 sheet.names(firstSheet)
@@ -395,15 +390,13 @@ sheet.names(secondSheet)
 sheet.names(thirdSheet)
 sheet.names(fourthSheet)
 sheet.names(fifthSheet)
-sheet.names(sixthSheet)
 
 # assign data tables to worksheets, apply filter across all sheets
 dt.worksheets(1,table_pathsize_tallyfiles) 
 dt.worksheets(2,duplicate_files_formatted)
 dt.worksheets(3,files_accessed_5plus)
-dt.worksheets(4,files_modified_5plus)
-dt.worksheets(5,folder_category_size) 
-dt.worksheets(6,sfp_categories_filetypes)
+dt.worksheets(4,folder_category_size) 
+dt.worksheets(5,sfp_categories_filetypes)
 
 # freeze top row of all sheets
 freeze.panes(1)
@@ -411,15 +404,14 @@ freeze.panes(2)
 freeze.panes(3)
 freeze.panes(4)
 freeze.panes(5)
-freeze.panes(6)
+
 
 # set custom column widths for all sheets
 setColWidths(excel, sheet = 1, cols = c(1, 2:6), widths = c(75, 20, 20, 20, 20, 20))
 setColWidths(excel, sheet = 2, cols = c(1, 2, 3:8), widths = c(50, 75, 20, 20, 20, 20, 20, 20))
 setColWidths(excel, sheet = 3, cols = c(1, 2, 3:8), widths = c(50, 75, 20, 20, 20, 20, 20, 20))
-setColWidths(excel, sheet = 4, cols = c(1, 2, 3:8), widths = c(50, 75, 20, 20, 20, 20, 20, 20))
-setColWidths(excel, sheet = 5, c(1, 2:6), widths = c(75, 20, 20, 20, 20, 20))
-setColWidths(excel, sheet = 6, c(1:2), widths = c(20, 20))
+setColWidths(excel, sheet = 4, c(1, 2:6), widths = c(75, 20, 20, 20, 20, 20))
+setColWidths(excel, sheet = 5, c(1:2), widths = c(20, 20))
 
 # set currency format on column
 sty1 = createStyle(numFmt="$0.00")
@@ -427,10 +419,9 @@ addStyle(excel, sheet = 1, sty1, rows=2:(nrow(table_pathsize_tallyfiles)+1), col
 addStyle(excel, sheet = 1, sty1, rows=2:(nrow(table_pathsize_tallyfiles)+1), cols=6)
 addStyle(excel, sheet = 2, sty1, rows=2:(nrow(duplicate_files_formatted)+1), cols=5)
 addStyle(excel, sheet = 3, sty1, rows=2:(nrow(files_accessed_5plus)+1), cols=5)
-addStyle(excel, sheet = 4, sty1, rows=2:(nrow(files_modified_5plus)+1), cols=5)
-addStyle(excel, sheet = 5, sty1, rows=2:(nrow(folder_category_size)+1), cols=5)
-addStyle(excel, sheet = 5, sty1, rows=2:(nrow(folder_category_size)+1), cols=6)
-addStyle(excel, sheet = 6, sty1, rows=2:(nrow(sfp_categories_filetypes)+1), cols=5)
+addStyle(excel, sheet = 4, sty1, rows=2:(nrow(folder_category_size)+1), cols=5)
+addStyle(excel, sheet = 4, sty1, rows=2:(nrow(folder_category_size)+1), cols=6)
+addStyle(excel, sheet = 5, sty1, rows=2:(nrow(sfp_categories_filetypes)+1), cols=5)
 
 # save the workbook to file
 saveWorkbook(excel, file = here("output", output_excel), overwrite = TRUE)

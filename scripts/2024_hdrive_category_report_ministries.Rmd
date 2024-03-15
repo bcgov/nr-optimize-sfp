@@ -1,0 +1,193 @@
+---
+author: "Copyright: Optimization Team 2024"
+date: "Compiled on `r format(Sys.time(), '%B %d, %Y')`"
+output: 
+  prettydoc::html_pretty:
+    theme: architect
+title: |
+  ![](GFX_OptimizationLogo-Icon_v2.png){width=350px} <br>
+  NRM H Drive Category Reports - Split by Ministry
+subtitle: "Data collected on `r params$collected`"
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE, fig.width = 9, fig.height = 7, fig.path = 'figure/')
+options(readr.show_col_types = FALSE)
+library(data.table)
+library(DT)
+library(dbplyr)
+library(dplyr)
+library(forcats)
+library(extrafont)
+library(glue)
+library(here)
+library(knitr)
+library(stringr)
+library(tidyverse)
+library(rmarkdown)
+library(gridExtra)
+library(shadowtext)
+library(scales)
+library(easyr)
+library(ggplot2)
+library(ggforce)
+library(ggsci)
+library(ggtext)
+library(hrbrthemes)
+
+#font_import()
+#loadfonts(device = "win")
+#theme_set(theme_bw())
+here::here()
+```
+
+```{r, date variables for plots, include = FALSE}
+collected <- as.Date("2024-02-15")
+quarter <- "Q4"
+fiscal <- "FY23-24"
+cap <- glue('Source: OCIO Summary Report from {format(collected, "%B %d, %Y")}')
+pdfname <- sprintf('Ministry_HDrive_Plots_%s_%s', quarter, fiscal)
+```
+
+```{r load enhanced H drive data, echo = FALSE}
+# create list of every CSV file in the folder with "U FileTypeCategory Summary Report" in the name
+hdrive.list <- list.files(here("source"), pattern = '*-U FileTypeCategory Summary Report', full.names = TRUE) 
+
+# get ministry acronyms from file names
+ministry.short <- vapply(basename(hdrive.list), `[`, 1, FUN.VALUE = character(1))
+ministry.short <- vapply(strsplit(as.character(ministry.short), split = '-U FileTypeCategory Summary Report.csv'), `[`, 1, FUN.VALUE = character(1))
+
+# correct outdated ministry acronyms
+ministry.short <- gsub('LWRS', 'WLRS', ministry.short)
+
+# assign ministry column & acronymns
+hdf.list <- lapply(hdrive.list, fread, stringsAsFactors = FALSE)
+hdf.list <- Map(cbind, hdf.list, Ministry = ministry.short)
+hdf <- do.call(rbind, hdf.list)
+
+# create dataframe of enhanced H drive data
+h_raw_data <- data.frame(hdf) %>% 
+  relocate(Ministry, .before = AppData.Size.GB) %>% 
+  relocate(Map.Size.GB, .after = Images.File.Count) %>% 
+  relocate(Map.File.Count, .after = Map.Size.GB)
+
+#h_raw_data
+```
+
+```{r create list of dataframes, echo = FALSE}
+ministries = c("AF", "BCWS", "EMLI", "ENV", "FOR", "IRR", "WLRS")
+
+categories = c("AppData", "Archive", "Audio", "Backups", "CAD", "Database", "Disk Images", "Documents", "Email", "Empty Extension", "Encase", "Executables", "Images", "Map", "P2P", "Source Code", "System", "Temporary", "Video", "Web Page")
+
+h_raw_data <- select(h_raw_data, c(-("User"), -contains("Count"))) %>% 
+  set_names(nm = c("Ministry", "AppData", "Archive", "Audio", "Backups", "CAD", "Database", "Disk Images", "Documents", "Email", "Empty Extension", "Encase", "Executables", "Images", "Map", "P2P", "Source Code", "System", "Temporary", "Video", "Web Page"))
+
+min_df <- lapply(1:length(ministries), function(x) {h_raw_data %>%
+    filter(Ministry == ministries[x]) %>% 
+    mutate_if(is.double, round, 1) %>% 
+    summarise(across(where(is.numeric), sum))
+  })
+
+names(min_df) <- ministries
+list2env(min_df , envir = .GlobalEnv)
+```
+
+```{r loop to factor each dataframe in list, echo = FALSE}
+min_fct_df <- function(x) {
+  data.frame(File_Category = factor(categories, levels = categories),  
+  Size_GB = c(x[["AppData"]], x[["Archive"]], x[["Audio"]], x[["Backups"]], x[["CAD"]], x[["Database"]], x[["Disk Images"]], x[["Documents"]], x[["Email"]], x[["Empty Extension"]], x[["Encase"]], x[["Executables"]], x[["Images"]], x[["Map"]], x[["P2P"]], x[["Source Code"]], x[["System"]], x[["Temporary"]], x[["Video"]], x[["Web Page"]]))
+}
+
+
+for (df in 1:length(min_df)) {
+  min_df[[df]] <- min_fct_df(min_df[[df]])
+  min_df[[df]]$File_Category = factor(categories, levels = categories[order(min_df[[df]]$Size_GB)])
+}
+
+list2env(min_df,envir = .GlobalEnv)
+```
+
+```{r function to create horizontal bar charts, echo = FALSE}
+ministry_h_chart <- function(df) {
+  ggplot(df) + 
+    geom_col(aes(Size_GB, File_Category), fill = "#234075", width = 0.7) + 
+    scale_x_continuous(
+      limits = c(0, 10500),
+      breaks = seq(0, 10000, by = 1000),
+      expand = c(0, 0), # The horizontal axis does not extend to either side
+      position = "top"  # Labels are located on the top
+    ) +
+    # The vertical axis only extends upwards 
+    scale_y_discrete(expand = expansion(add = c(0, 0.5))) +
+    theme(
+      # Set background color to white
+      panel.background = element_rect(fill = "#F2F2F2"),
+      panel.grid.minor = element_blank(),
+      # Set the color and the width of the grid lines for the horizontal axis
+      panel.grid.major.x = element_line(color = "#FCBA19", size = 0.3),
+      axis.title.y = element_blank(),
+      axis.title.x = element_blank(),
+      # Only left line of the vertical axis is painted in black
+      axis.line.y.left = element_line(color = "#313132"),
+      # customize labels for the vertical & horizontal axis
+      axis.text.y = element_text(family = "BC Sans", hjust = 0, size = 8.5),
+      axis.text.x = element_text(family = "BC Sans", hjust = 0, size = 7)
+    ) + 
+    geom_shadowtext(
+      data = subset(df, Size_GB < 500),
+      aes(Size_GB, y = File_Category, label = Size_GB),
+      hjust = -0.1,
+      nudge_x = 0.3,
+      colour = "#234075",
+      bg.colour = "#F2F2F2",
+      bg.r = 0.2,
+      family = "BC Sans",
+      size = 2.5
+    ) + 
+    geom_text(
+      data = subset(df, Size_GB >= 500),
+      aes(0, y = File_Category, label = Size_GB),
+      hjust = -0.1,
+      nudge_x = 0.3,
+      colour = "#F2F2F2",
+      family = "BC Sans",
+      size = 2.5
+    ) + 
+    labs(x = "Size (GB)", 
+         y = "File Type Category", 
+         title = paste0(deparse(substitute(df)), " H Drive Analysis"), 
+         subtitle = "Storage Consumption by File Type Category", 
+         caption = cap) + 
+    theme(
+          axis.title.x = element_text(family = "BC Sans", hjust = 0,size = 8),
+          plot.title = element_text(family = "BC Sans", face = "bold", hjust = c(0,0), size = 14),    
+          plot.subtitle = element_text(family = "BC Sans", size = 12),         
+          plot.caption = element_text(family = "BC Sans", color = "#606060", size = 10),         
+          plot.margin = margin(0.5, 1.8, 0.5, 0.5, "cm")) -> plot
+  }
+```
+
+```{R run new function, echo = FALSE}
+chart_AF_hdrive <- ministry_h_chart(AF)
+chart_BCWS_hdrive <- ministry_h_chart(BCWS)
+chart_EMLI_hdrive <- ministry_h_chart(EMLI)
+chart_ENV_hdrive <- ministry_h_chart(ENV)
+chart_FOR_hdrive <- ministry_h_chart(FOR)
+chart_IRR_hdrive <- ministry_h_chart(IRR)
+chart_WLRS_hdrive <- ministry_h_chart(WLRS)
+
+plotlist = list()
+plotlist[[1]] <- chart_AF_hdrive
+plotlist[[2]] <- chart_BCWS_hdrive 
+plotlist[[3]] <- chart_EMLI_hdrive 
+plotlist[[4]] <- chart_ENV_hdrive 
+plotlist[[5]] <- chart_FOR_hdrive 
+plotlist[[6]] <- chart_IRR_hdrive 
+plotlist[[7]] <- chart_WLRS_hdrive
+
+pdf(here('figure',glue(pdfname,".pdf")))
+for (i in 1:7) {
+  print(plotlist[[i]])
+}
+dev.off()
+```

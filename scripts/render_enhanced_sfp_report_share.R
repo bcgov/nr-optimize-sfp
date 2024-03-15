@@ -5,10 +5,12 @@ library(rmarkdown)
 # You can find the correct directory by typing Sys.getenv("RSTUDIO_PANDOC")
 Sys.setenv(RSTUDIO_PANDOC="C:/Program Files/RStudio/bin/")
 
+source("scripts/load_groupshare_files.R")
+
 # function to render parameters and save html output to file
 render_report = function(data, ministry, share, quarter, fiscal, collected) {
   rmarkdown::render(
-    here("scripts", "enhanced_sfp_report_share_v4.Rmd"), params = list(
+    here("scripts", "enhanced_sfp_report_share.Rmd"), params = list(
       data = data,
       ministry = ministry,
       share = share,
@@ -22,5 +24,7 @@ render_report = function(data, ministry, share, quarter, fiscal, collected) {
 }
 
 #render, stating parameters
-render_report("2023-01-01_AF_SFP_Enhanced_Data.csv", "AF", "S04040", "Q4", "FY22-23", "2023-01-04")
+render_report("2024-02-01_ENV_SFP_Enhanced_Data.csv", "ENV", "S40036", "Q4", "FY23-24", "2024-02-15")
+
+
 
