@@ -8,7 +8,7 @@ Sys.setenv(RSTUDIO_PANDOC="C:/Program Files/RStudio/bin/")
 # function to render parameters and save html output to file
 render_report = function(data, ministry, path, folder, quarter, fiscal, collected) {
   rmarkdown::render(
-    here("scripts", "enhanced_sfp_report_folder_v4.rmd"), params = list(
+    here("scripts", "enhanced_sfp_report_folder.rmd"), params = list(
       data = data,
       ministry = ministry,
       path = path,
@@ -23,4 +23,4 @@ render_report = function(data, ministry, path, folder, quarter, fiscal, collecte
 }
 
 #render, stating parameters
-render_report("2023-01-01_FOR_SFP_Enhanced_Data.csv", "FOR", "/ifs/sharedfile/top_level/C64/S63056/ILMB_CRIM_CRIO/GEOBC_Helpdesk", "GEOBC_Helpdesk", "Q4", "FY22-23", "2023-01-04")
+render_report("2024-02-01_ENV_SFP_Enhanced_Data.csv", "ENV", "/ifs/sharedfile/top_level/C40/S40007/RPAB/RPAB/12 CISF", "12 CISF", "Q4", "FY23-24", "2024-02-15")
