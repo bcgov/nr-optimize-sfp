@@ -20,7 +20,7 @@ params:
     label: "Year data was collected:"
     value: 2023
     input: select
-    choices: [2023, 2024, 2022026]
+    choices: [2023, 2024, 2025, 2026]
 title: |
   ![](GFX_OptimizationLogo-Icon_v2.png){width=350px} <br>
   Enhanced H Drive Quarterly Report <br> Categorical Consumption for `r params$ministry` 
@@ -58,8 +58,8 @@ Sys.setenv(RSTUDIO_PANDOC="C:/Program Files/RStudio/bin/pandoc")
 hdrive.list <- list.files(here("source"), pattern = '*-U FileTypeCategory Summary Report', full.names = TRUE) 
 
 # get ministry acronyms from file names
-ministry.short <- vapply(basename(hdrive.list), `[`, 1, FUN.VALUE=character(1))
-ministry.short <- vapply(strsplit(as.character(ministry.short), split = '-U FileTypeCategory Summary Report.csv'), `[`, 1, FUN.VALUE=character(1))
+ministry.short <- vapply(basename(hdrive.list), `[`, 1, FUN.VALUE = character(1))
+ministry.short <- vapply(strsplit(as.character(ministry.short), split = '-U FileTypeCategory Summary Report.csv'), `[`, 1, FUN.VALUE = character(1))
 
 # correct outdated ministry acronyms
 ministry.short <- gsub('LWRS', 'WLRS', ministry.short)
@@ -223,15 +223,15 @@ min_Backups <- data.frame(list("Category" = "Backups",
 
 min_CAD <- data.frame(list("Category" = "CAD",
                 "File count" = sum(CAD$CAD_File_Count),       
-                "Total size (GB)" = dollar(sum(CAD$CAD_Size_GB)), 
-                "Total cost" = sum(CAD$Cost),
+                "Total size (GB)" = sum(CAD$CAD_Size_GB)), 
+                "Total cost" = dollar(sum(CAD$Cost),
                 "Avg size (GB) per user" = round(sum((CAD$CAD_Size_GB)/nrow(CAD)),3))
                 )
 
 min_Database <- data.frame(list("Category" = "Database",
                      "File count" = sum(Database$Database_File_Count),       
                      "Total size (GB)" = sum(Database$Database_Size_GB),
-                     "Total cost" = sum(Database$Cost),
+                     "Total cost" = dollar(sum(Database$Cost)),
                      "Avg size (GB) per user" = round(sum((Database$Database_Size_GB)/nrow(Database)),3))
                      )
 
@@ -243,7 +243,7 @@ min_Disk_Images <- data.frame(list("Category" = "Disk Images",
                         )
 
 min_Documents <- data.frame(list("Category" = "Documents",
-                        "File count" = sum(Documents$Documents_Images_File_Count),       
+                        "File count" = sum(Documents$Documents_File_Count),       
                         "Total size (GB)" = sum(Documents$Documents_Size_GB),  
                         "Total cost" = dollar(sum(Documents$Cost)),
                         "Avg size (GB) per user" = round(sum((Documents$Documents_Size_GB)/nrow(Documents)),3))
@@ -335,10 +335,12 @@ min_Web_Page <- data.frame(list("Category" = "Web Page",
 ```
 
 ```{r, category lists to dataframe, include = FALSE}
-min_category_df <- rbind(min_AppData, min_Archive, min_Audio, min_Backups, min_CAD, min_Database, min_Disk_Images, min_Email, min_Empty_Extension, min_Encase, min_Executables, min_Images, min_Map, min_P2P, min_Source_Code, min_System, min_Temporary, min_Video, min_Web_Page)
+#min_category_df <- rbind(min_AppData, min_Archive, min_Audio, min_Backups, min_CAD, min_Database, min_Disk_Images, min_Documents, min_Email, min_Empty_Extension, min_Encase, min_Executables, min_Images, min_Map, min_P2P, min_Source_Code, min_System, min_Temporary, min_Video, min_Web_Page)
+
+min_category_df <- bind_rows(min_AppData, min_Archive, min_Audio, min_Backups, min_CAD, min_Database, min_Disk_Images, min_Documents, min_Email, min_Empty_Extension, min_Encase, min_Executables, min_Images, min_Map, min_P2P, min_Source_Code, min_System, min_Temporary, min_Video, min_Web_Page)
 ```
 
-```{r, categorical top ten search, include = FALSE}
+```{r, categorical top five search, include = FALSE}
 AppData5 <- AppData[1:5, ]
 AppData5$Cost <- dollar(AppData5$Cost)
 
@@ -410,7 +412,7 @@ h3 {
 <br>
 
 <div align="center"><span style="color: #234075;">Average Consumption per H Drive Category</span></div>
-`r datatable(min_category_df, rownames = FALSE, colnames = c('Category' = 1, 'File Count' = 2, 'Total Size(GB)' = 3, 'Cost' = 4, 'Avg GB per User' = 5), options=list(columnDefs = list(list(className = 'dt-left', targets="_all"))))`
+`r datatable(min_category_df, rownames = FALSE, colnames = c('Category' = 1, 'File Count' = 2, 'Total Size(GB)' = 3, 'Cost' = 4, 'Avg GB per User' = 5), options = list(columnDefs = list(list(className = 'dt-left', targets="_all")), order = list(list(4, 'desc'))))`
 <br>
 <br>
 

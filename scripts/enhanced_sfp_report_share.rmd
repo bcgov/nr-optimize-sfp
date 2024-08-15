@@ -39,7 +39,7 @@ subtitle: "Data collected on `r params$collected` for Ministry of `r params$mini
 ---
 
 ```{r setup, include=FALSE}
-knitr::opts_chunk$set(echo=TRUE, warning=FALSE, message=FALSE, fig.width=7, fig.height=5, fig.path='figure/')
+knitr::opts_chunk$set(echo = TRUE, warning = FALSE, message = FALSE, fig.width = 7, fig.height = 5, fig.path = 'figure/')
 library(data.table)
 library(DT)
 library(dbplyr)
@@ -70,7 +70,7 @@ source(here("scripts", glue('custom_sfp_functions.R')), local = knitr::knit_glob
 
 ```{r load data, include = FALSE}
 # load csv and fill empty cells 
-sfp_data <- read_csv((here("source", glue("{params$data}", na.strings=c(""," ","NULL")))))
+sfp_data <- read_csv((here("source", glue("{params$data}", na.strings = c(""," ","NULL")))))
 
 # keep only the first 9 columns
 sfp_data <- sfp_data[,c(1:9)]
@@ -81,7 +81,7 @@ colnames(sfp_data) <- c("filename", "path", "filetype","category","sizemb","last
 
 ```{r folder search, include = FALSE}
 formatted_sfp_data <- sfp_data %>%
-  mutate(share = gsub("\\", "", share, fixed=TRUE)) %>%
+  mutate(share = gsub("\\", "", share, fixed = TRUE)) %>%
   filter(str_detect(share, {params$share})) %>%
   mutate(root = word(path, 1, 7, sep = "\\\\")) %>%
   mutate(sizegb = sizemb / 1000) %>% 
@@ -360,6 +360,7 @@ title("Report Coverage \nSFP Share", line = -1)
 
 ## SFP Reduction Goals - Records Management and Migration to Address Rising Storage Costs
 
+- [Fiscal Year 2024-2025 Chart of NRM SFP Consumption](http://nrmccp-metabase.apps.silver.devops.gov.bc.ca/public/dashboard/4e59fe00-e957-4336-9106-e5aa9a645f78) 
 - [Fiscal Year 2023-2024 Chart of NRM SFP Consumption](http://nrmccp-metabase.apps.silver.devops.gov.bc.ca/public/dashboard/709e5e4e-fd84-4653-a77d-2074b2d44110) 
 
 - Interested in reducing SFP consumption by migrating data to Object Storage? The Optimization Team has more information on [Confluence](https://apps.nrs.gov.bc.ca/int/confluence/display/OPTIMIZE/NRM+Object+Storage+Service) or you can place a request through the [Jira Service Desk](https://apps.nrs.gov.bc.ca/int/jira/servicedesk/customer/portal/1/create/701) after reading our [Service Level Agreement](https://apps.nrs.gov.bc.ca/int/confluence/display/OPTIMIZE/Object+Storage+Forms?preview=/65671335/133730673/SLA_Revision_0.6.pdf). <br>

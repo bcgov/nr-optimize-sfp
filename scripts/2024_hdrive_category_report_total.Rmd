@@ -40,9 +40,9 @@ here::here()
 ```
 
 ```{r, date variables for plots}
-collected <- as.Date("2024-02-15")
-quarter <- "Q4"
-fiscal <- "FY23-24"
+collected <- as.Date("2024-07-04")
+quarter <- "Q2"
+fiscal <- "FY24-25"
 cap <- glue('Source: OCIO Summary Report from {format(collected, "%B %d, %Y")}')
 ```
 
@@ -184,4 +184,9 @@ total_chart
 
 print(total_chart)
 dev.off()
+
+ggsave(total_chart, 
+       filename = glue('total_nrm_hdrive_catplot_', quarter, '_', fiscal, '.png'),
+       device = "png",
+       height = 9, width = 8.25, units = "in")
 ```

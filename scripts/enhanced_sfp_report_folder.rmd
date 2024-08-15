@@ -338,6 +338,7 @@ Approx. <span style="color: red;">`r {dup_cost}` per month</span> could be saved
 
 ## SFP Reduction Goals - Records Management and Migration to Address Rising Storage Costs
 
+- [Fiscal Year 2024-2025 Chart of NRM SFP Consumption](http://nrmccp-metabase.apps.silver.devops.gov.bc.ca/public/dashboard/4e59fe00-e957-4336-9106-e5aa9a645f78) 
 - [Fiscal Year 2023-2024 Chart of NRM SFP Consumption](http://nrmccp-metabase.apps.silver.devops.gov.bc.ca/public/dashboard/709e5e4e-fd84-4653-a77d-2074b2d44110) 
 
 - Interested in reducing SFP consumption by migrating data to Object Storage? The Optimization Team has more information on [Confluence](https://apps.nrs.gov.bc.ca/int/confluence/display/OPTIMIZE/NRM+Object+Storage+Service) or you can place a request through the [Jira Service Desk](https://apps.nrs.gov.bc.ca/int/jira/servicedesk/customer/portal/1/create/701) after reading our [Service Level Agreement](https://apps.nrs.gov.bc.ca/int/confluence/display/OPTIMIZE/Object+Storage+Forms?preview=/65671335/133730673/SLA_Revision_0.6.pdf). <br>

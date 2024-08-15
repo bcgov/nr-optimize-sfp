@@ -24,7 +24,7 @@ render_report = function(data, ministry, share, quarter, fiscal, collected) {
 }
 
 #render, stating parameters
-render_report("2024-02-01_ENV_SFP_Enhanced_Data.csv", "ENV", "S40036", "Q4", "FY23-24", "2024-02-15")
+render_report("2024_07_01_EMLI_SFP_Enhanced_Data.csv", "EMLI",  "S6207", "Q2", "FY24-25", "2024-06-29")
 
 
 

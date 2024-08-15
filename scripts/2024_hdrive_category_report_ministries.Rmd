@@ -42,9 +42,9 @@ here::here()
 ```
 
 ```{r, date variables for plots, include = FALSE}
-collected <- as.Date("2024-02-15")
-quarter <- "Q4"
-fiscal <- "FY23-24"
+collected <- as.Date("2024-07-04")
+quarter <- "Q2"
+fiscal <- "FY24-25"
 cap <- glue('Source: OCIO Summary Report from {format(collected, "%B %d, %Y")}')
 pdfname <- sprintf('Ministry_HDrive_Plots_%s_%s', quarter, fiscal)
 ```

@@ -23,6 +23,7 @@ render_report = function(data, ministry, share, quarter, fiscal, collected) {
   )
 }
 
-#render, stating parameters
-render_report("2024-02-01_AF_SFP_Enhanced_Data.csv", "AF", "S04048", "Q4", "FY23-24", "2024-02-15")
+#render report on SFP share without using a pie chart to show coverage, stating parameters
+render_report("2024_07_01_WLRS_SFP_Enhanced_Data.csv", "WLRS", "S09002", "Q2", "FY24-25", "2024-07-04")
+render_report("2024_07_01_WLRS_SFP_Enhanced_Data.csv", "WLRS", "S09009", "Q2", "FY24-25", "2024-07-04")
 
