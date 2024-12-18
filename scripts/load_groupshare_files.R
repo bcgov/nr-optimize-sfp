@@ -41,3 +41,5 @@ groupshare_df <- groupshare_df %>%
 # rename the remaining columns for funtionality (remove blank spaces etc.)
 colnames(groupshare_df)[1] = "share_name"
 colnames(groupshare_df)[2] = "used_gb"
+
+

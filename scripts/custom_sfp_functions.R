@@ -10,7 +10,7 @@ sheet.names <- function(.data) {
 
 # write df to excel sheet
 dt.worksheets <- function(x, .data) {
-  writeDataTable(excel, sheet = x, .data, colNames = TRUE, withFilter = TRUE)
+  writeDataTable(excel, sheet = x, .data, colNames = TRUE, withFilter = TRUE, tableStyle = "TableStyleLight2")
 }
 
 # freeze top row of excel sheets

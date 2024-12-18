@@ -1,0 +1,121 @@
+---
+title: "Branch Storage Reports"
+author: "Copyright: Optimization Team 2024"
+output: html_document
+params:
+  ministry:
+    label: "Ministry Name:"
+    value: AF
+    input: select
+    choices: [AF, BCWS, EMLI, ENV, FOR, IRR, WLRS]
+  collected:
+    label: "datestamp on OCIO file:"
+    value: 2024-08-15
+    input: text
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE, warning = FALSE, message = FALSE)
+options(readr.show_col_types = FALSE)
+library(data.table)
+library(dplyr)
+library(glue)
+library(here)
+library(lubridate)
+library(openxlsx)
+library(stringr)
+library(purrr)
+library(tidyverse)
+here::here()
+```
+
+```{r global, call-homedrive-data, cache = TRUE, include = FALSE}
+# load home drive dataframe  from external scripts
+source(here("scripts", glue('load_homedrive_files.R')), local = knitr::knit_global())
+```
+
+```{r global, call-custom-functions, cache = TRUE, include = FALSE}
+# load settings for dates, excel sheets, and colours
+source(here("scripts", glue('custom_script_functions.R')), local = knitr::knit_global())
+```
+
+```{r limit indicator column, include = FALSE}
+homedrives_df$"Over Limit (1.5gb)" <- cut(homedrives_df$Used, breaks = c(-Inf, 1.5, Inf), 
+                        labels = c("No", "Yes"))
+
+# drop rows with NA in Display Name column
+homedrives_df <- homedrives_df %>% 
+  drop_na(Display.Name) 
+
+# drop rows where the display name is 'NO IDIR USER RECORD FOUND'
+homedrives_df <- homedrives_df[!grepl('NO IDIR USER RECORD FOUND', homedrives_df$Display.Name),]
+
+# populate NA Branch values with Division values
+homedrives_df <- homedrives_df %>% 
+  mutate(Branch = coalesce(Branch, Division))
+```
+
+```{r ministry filter, include = FALSE}
+# filter by Ministry
+
+df_sub <- homedrives_df |> filter(Ministry == {params$ministry}) %>% 
+  select(-c("Used"))
+```
+
+
+```{r split out by columns, echo=FALSE}
+ 
+# group by Division and Branches
+div_br_grp <- df_sub %>% 
+  group_by(Division, Branch) 
+
+# order alphabetically by Division then Branch
+div_br_grp <- div_br_grp[order(div_br_grp$Division, div_br_grp$Branch, div_br_grp$"Over Limit (1.5gb)"),]
+
+# split into separate tibbles
+grp_spl <- group_split(div_br_grp)
+
+# get count of tibbles for range
+numWB <- length(grp_spl)
+
+# convert tibbles to tables
+grp_spl_dt <- data.table(grp_spl)
+```
+
+```{r loop to create excel workbooks, echo=FALSE}
+  
+for (i in 1:numWB) {
+  # create dynamic output name
+  div = gsub("[^A-Z]","", grp_spl_dt[[1]][[i]]$Division)
+  div_acronymn = unique(div)
+  br_acronymn = unique(grp_spl_dt[[1]][[i]]$Branch)
+  #output_excel = paste0({params$ministry}, "_", {div_acronymn},"_", {br_acronymn},"_DSR_", {params$collected}, ".xlsx")
+  output_excel = paste0({params$ministry}, "_", {div_acronymn},"_", {br_acronymn},"_DSR_", {params$collected}, ".xlsx")
+  # create workbook
+  excel <- createWorkbook(output_excel)
+  # create sheet names
+  firstSheet = "Branch Storage Report"
+  # add worksheets to workbook
+  sheet.names(firstSheet)
+  # assign data tables to worksheets, apply filter across all sheets
+  dt.worksheets(1, grp_spl_dt[[1]][[i]])
+  # add disclaimer text to top rows
+  xl.disclaimer(excel, firstSheet)
+  #add style to disclaimer text
+  dc.style(excel, firstSheet)
+  # apply conditional formatting
+  limit.style(excel, firstSheet)
+  # freeze column header
+  freeze.panes(1)
+  # set custom column widths for all sheets
+  setColWidths(excel, sheet = 1, cols = c(1, 2, 3, 4, 5), widths = c(92, 50, 50, 10, 20))
+  # save the workbook to file
+  saveWorkbook(excel, file = here("output", output_excel), overwrite = TRUE)
+}
+```
+
+
+
+
+
+

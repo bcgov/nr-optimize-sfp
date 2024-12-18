@@ -1,0 +1,239 @@
+---
+title: "SFP for BI"
+author: "Copyright: Optimization Team 2024"
+date: "Compiled on `r format(Sys.time(), '%B %d, %Y')`"
+output: html_document
+params:
+  sfpmonthly:
+    label: "datestamp on monthly SFP file:"
+    value: 2024-10-15
+    input: date
+  sfpenhanced:
+    label: "datestamp on enhanced SFP file:"
+    value: 2024-10-29
+    input: date
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo=TRUE, warning=FALSE, message=FALSE)
+options(readr.show_col_types = FALSE)
+library(data.table)
+library(dplyr)
+library(glue)
+library(here)
+library(lubridate)
+library(openxlsx)
+library(stringi)
+library(stringr)
+library(purrr)
+library(tidyverse)
+here::here()
+```
+
+```{r, create reference table, include = FALSE}
+# create table
+ 
+ref_table <- data.frame('sfp_cost' = 2.7, 'object_storage_cost' = 0.07)
+```
+
+```{r global, call-external-functions, include = FALSE}
+# load custom functions from external scripts
+source(here("scripts", glue('custom_sfp_functions.R')), local = knitr::knit_global())
+```
+
+```{r global, call-groupshare-data, cache = TRUE, include = FALSE}
+# load group share dataframe from external scripts. Make sure your current source files are in the proper folder!
+source(here("scripts", glue('load_monthly_groupshares.R')), local = knitr::knit_global())
+```
+
+#```{r global, call-sfp-owners, cache = TRUE, include = FALSE}
+## load sfp owner dataframefrom external scripts. Make sure your current source files are in the proper folder!
+#source(here("scripts", glue('load_sfp_owners.R')), local = knitr::knit_global())
+#```
+
+```{r global, call-enhanced-sfp-data, include = FALSE}
+# load enhanced sfp dataframe from external scripts. Make sure your current source files are in the proper folder!
+source(here("scripts", glue('load_enhanced_sfp.R')), local = knitr::knit_global())
+```
+
+```{r, create table for group share info, include = FALSE}
+share_info <- grpshr_df
+
+share_info <- share_info %>% 
+  group_by(ministry) %>%
+  mutate(used_tb = round(used_gb/1000,6))
+
+share_info <- share_info[,c(3,1,2,4)]
+share_info <- share_info[order(share_info$ministry, -share_info$used_gb),]
+
+# View(share_info)  
+```
+
+```{r, create table for categorical info, include = FALSE}
+categorical_info <- sfp.df %>% 
+  group_by(category, ministry, share) %>% 
+  summarize(used_gb = round(sum(file_size_mb / 1000),3), file_count = n()) %>% 
+  select(ministry, share, category, file_count, used_gb)
+
+categorical_info <- categorical_info[order(categorical_info$ministry, -categorical_info$used_gb),]
+  
+# View(categorical_info)
+```
+
+```{r, create table for file type and last accessed date info, include = FALSE}
+date <- as.Date({params$sfpenhanced}, "%Y-%m-%d")
+fy2223 <- ymd('2022-04-01')
+
+count_pre_fy2223 <- sfp.df %>% 
+  filter(last_access_date < fy2223) %>% 
+  group_by(ministry, share, category, file_type) %>% 
+  summarise(file_count_agedout = n())
+
+count_all <- sfp.df %>% 
+  group_by(ministry, share, category, file_type) %>% 
+  summarise(used_gb = round(sum(file_size_mb / 1000),3), file_count = n())
+
+file_type_info <- left_join(count_all, count_pre_fy2223, by = c("ministry","share", "category", "file_type")) %>% 
+  mutate_if(is.integer, ~replace(., is.na(.), 0)) # replace NA values in numeric columns with zero
+
+# View(file_type_info)
+```
+
+```{r, create table with database file info}
+database_info <- filter(sfp.df, category == 'Database') %>%  
+  filter(last_access_date > fy2223) %>% 
+  group_by(ministry, share) %>% 
+  summarize(used_db_gb = round(sum(file_size_mb / 1000),3), file_count_db = n())
+
+database_info <- database_info[order(database_info$ministry, -database_info$used_db_gb),]
+```
+
+```{r, create table for duplicate file info, include = FALSE}
+dupe_files_info <- sfp.df %>% 
+  group_by(file_name, file_size_mb) %>% 
+  filter( n() > 1 )
+
+dupe_files_info <- dupe_files_info %>% 
+  group_by(ministry, share)%>% 
+  summarise(dupe_used_gb = round(sum(file_size_mb / 1000),3), dup_file_count = n()) 
+
+dupe_files_info <- left_join(dupe_files_info, grpshr_df, by = c("ministry","share")) 
+
+names(dupe_files_info)[names(dupe_files_info) == 'used_gb'] <- 'shr_used_gb'
+dupe_files_info <- dupe_files_info[,c(1,2,5,3,4)]
+
+# View(dupe_files_info) 
+```
+
+#```{r, create table for files over 5 years old, include = FALSE}
+#share_over5 <- sfp.df %>% 
+#  filter(last_access_date < fiveyears) %>% 
+#  group_by(ministry, share) %>% 
+#  summarise(file_count_over5 = n(), over5_used_gb = round(sum(file_size_mb / 1000),3), monthly_cost = round(sum((file_size_mb / 1000) * 2.7),2))
+#
+#older_files_info <- left_join(share_over5, grpshr_df, by = c("ministry","share")) 
+#
+#older_files_info$shr_percentage_used <- round(100 * (older_files_info$over5_used_gb / older_files_info$used_gb),1)
+#
+#older_files_info %>% 
+#  select(ministry, share, file_count_over5, over5_used_gb, monthly_cost, shr_percentage_used, -used_gb)
+#
+## View(older_files_info)
+#```
+
+```{r, create table for files last accessed before April 2022, include = FALSE}
+share_preFY2223 <- sfp.df %>% 
+  filter(last_access_date < ymd('2022-04-01')) %>% 
+  group_by(ministry, share) %>% 
+  summarise(file_count_agedout = n(),used_gb_agedout = round(sum(file_size_mb / 1000),3))
+
+preFY2223_files_info <- left_join(share_preFY2223, grpshr_df, by = c("ministry","share")) 
+
+preFY2223_files_info %>% 
+  select(ministry, share, used_gb, -used_gb_agedout, file_count_agedout)
+
+preFY2223_files_info <- preFY2223_files_info[,c(1,2,5,4,3)]
+
+# View(preFY2223_files_info)
+```
+
+```{r, calculate for removal of database files}
+preFY2223_no_db <- left_join(preFY2223_files_info, database_info, by= c("ministry","share"))
+
+preFY2223_no_db <- preFY2223_no_db[order(-preFY2223_no_db$used_gb),]
+
+preFY2223_no_db <- preFY2223_no_db[,c(1,2,5,4,3,6,7)]
+```
+
+
+```{r, export data frames to csv files, include = FALSE}
+fwrite(share_info, here("output", 'SFP_Mastersheet_Share_Info.csv'))
+fwrite(categorical_info, here("output", 'SFP_Mastersheet_Categorical.csv'))
+fwrite(file_type_info, here("output", 'SFP_Mastersheet_FileTypes.csv'))
+fwrite(dupe_files_info, here("output", 'SFP_Mastersheet_Duplicates.csv'))
+fwrite(preFY2223_files_info, here("output", 'SFP_Mastersheet_Aged_Out.csv'))
+fwrite(database_info, here("output", 'SFP_Mastersheet_Database_Active.csv'))
+fwrite(preFY2223_no_db, here("output", 'SFP_Mastersheet_NoDB_Aged_Out.csv'))
+fwrite(ref_table, here("output", 'SFP_Mastersheet_Cost_Reference.csv'))
+```
+
+```{r, create the excel file output, include = FALSE}
+# create output file name
+output_excel = paste0("SFP_Mastersheet.xlsx")
+
+# create workbook
+excel <- createWorkbook(output_excel)
+
+# create sheet names
+firstSheet = "Share Info"
+secondSheet = "Categorical Info"
+thirdSheet = "File Type Info"
+fourthSheet = "Duplicate Files Info"
+fifthSheet = "Last Accessed Files Aged Out"
+sixthSheet = "Database Info Active"
+seventhSheet = "No DB LA Files Aged Out"
+
+
+# add worksheets to workbook
+sheet.names(firstSheet)
+sheet.names(secondSheet)
+sheet.names(thirdSheet)
+sheet.names(fourthSheet)
+sheet.names(fifthSheet)
+sheet.names(sixthSheet)
+sheet.names(seventhSheet)
+
+
+# assign data tables to worksheets, apply filter across all sheets
+dt.worksheets(1, share_info)
+dt.worksheets(2, categorical_info) 
+dt.worksheets(3, file_type_info) 
+dt.worksheets(4, dupe_files_info)
+dt.worksheets(5, preFY2223_files_info)
+dt.worksheets(6, database_info)
+dt.worksheets(7, preFY2223_no_db)
+
+# freeze top row of all sheets
+freeze.panes(1)
+freeze.panes(2)
+freeze.panes(3)
+freeze.panes(4)
+freeze.panes(5)
+freeze.panes(6)
+freeze.panes(7)
+
+# set custom column widths for all sheets
+setColWidths(excel, sheet = 1, cols = 1:ncol(share_info), widths = "auto")
+setColWidths(excel, sheet = 2, cols = 1:ncol(categorical_info), widths = "auto")
+setColWidths(excel, sheet = 3, cols = 1:ncol(file_type_info), widths = "auto")
+setColWidths(excel, sheet = 4, cols = 1:ncol(dupe_files_info), widths = "auto")
+setColWidths(excel, sheet = 5, cols = 1:ncol(preFY2223_files_info), widths = "auto")
+setColWidths(excel, sheet = 6, cols = 1:ncol(database_info), widths = "auto")
+setColWidths(excel, sheet = 7, cols = 1:ncol(preFY2223_no_db), widths = "auto")
+
+# save the workbook to file
+saveWorkbook(excel, file = here("output", output_excel), overwrite = TRUE)
+```
+
+
+
