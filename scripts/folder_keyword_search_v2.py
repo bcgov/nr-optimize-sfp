@@ -73,11 +73,11 @@ for i, item in enumerate(keywords, start=0):
 
 # prompt to add keywords
 keywords_answer = input(
-    "\nyes or no: Do you want to add more keywords to the existing list? "
+    "\nEnter y or n: Do you want to add more keywords to the existing list? "
 )
 
 # loop to confirm proper input
-if keywords_answer == "yes":
+if keywords_answer == "y":
     # add new keywords to list
     add_keywords = list()
     add_keywords = input("Add extra keywords, separated by commas:\n").split(", ")
@@ -86,30 +86,30 @@ if keywords_answer == "yes":
     print("\nThe updated keyword list is: ")
     for i, item in enumerate(keywords, start=0):
         print(i, item)
-elif keywords_answer == "no":
+elif keywords_answer == "n":
     print("\nOK, no additions will be made.\n")
 
-while keywords_answer not in ("yes", "no"):
-    keywords_answer = input("Enter yes or no: ")
-    if keywords_answer == "yes":
+while keywords_answer not in ("y", "n"):
+    keywords_answer = input("Enter y or n: ")
+    if keywords_answer == "y":
         add_keywords = list()
         add_keywords = input("\nAdd extra keywords, separated by commas: ").split(", ")
         keywords.extend(add_keywords)
         print("\nThe updated keyword list is: ")
         for i, item in enumerate(keywords, start=0):
             print(i, item)
-    elif keywords_answer == "no":
+    elif keywords_answer == "n":
         print("\nOK, no additions will be made.")
         break
     else:
-        print("Please enter yes or no.")
+        print("Please Enter y or n.")
 
 # prompt to remove keywords
 keywords_next = input(
-    "yes or no: Do you want to remove keywords from the existing list? "
+    "Enter y or n: Do you want to remove keywords from the existing list? "
 )
 
-if keywords_next == "yes":
+if keywords_next == "y":
     # remove keywords from list
     remove_keywords = list()
     remove_keywords = input(
@@ -127,13 +127,13 @@ if keywords_next == "yes":
     for i, item in enumerate(keywords, start=0):
         print(i, item)
 
-elif keywords_next == "no":
+elif keywords_next == "n":
     print("\nOK, no removals will be made.")
 
-while keywords_next not in ("yes", "no"):
-    keywords_next = input("Enter yes or no: ")
+while keywords_next not in ("y", "n"):
+    keywords_next = input("Enter y or n: ")
 
-    if keywords_next == "yes":
+    if keywords_next == "y":
         # remove keywords from list
         remove_keywords = list()
         remove_keywords = input(
@@ -151,20 +151,20 @@ while keywords_next not in ("yes", "no"):
         for i, item in enumerate(keywords, start=0):
             print(i, item)
 
-    elif keywords_next == "no":
+    elif keywords_next == "n":
         print("\nOK, no removals will be made.")
         break
     else:
-        print("Please enter yes or no.")
+        print("Please Enter y or n.")
 
 # prompt to specify path used in search
 user_dir = input(
     "\nEnter the directory you want to search exactly as you have it mapped on your computer: "
 )
 
-answer = input(f"\nyes or no: Is {user_dir} the correct directory to search? ")
+answer = input(f"\nEnter y or n: Is {user_dir} the correct directory to search? ")
 
-if answer == "yes":
+if answer == "y":
     # check that the path exists
     if os.path.exists(user_dir):
         # confirm the user_dir search
@@ -192,7 +192,7 @@ if answer == "yes":
         else:
             print("Cannot reach network drive. Exiting now...")
             exit()
-elif answer == "no":
+elif answer == "n":
     # repeat user_dir prompt
     retry_dir = input(
         "\nTry again: Enter the directory you want to search exactly as you have it mapped on your computer: "
@@ -224,14 +224,14 @@ elif answer == "no":
         else:
             print("Cannot reach network drive. Exiting now...")
             exit()
-while answer not in ("yes", "no"):
-    answer = input("Enter yes or no: ")
-    if answer == "yes":
+while answer not in ("y", "n"):
+    answer = input("Enter y or n: ")
+    if answer == "y":
         # confirm the directory search
         print(
             f"\nSearching {user_dir} for file contents and compiling data to file, this may take several minutes or several hours depending on size. /nPlease keep this window running in the background until complete.\n"
         )
-    elif answer == "no":
+    elif answer == "n":
         # repeat directory prompt
         retry_dir = input(
             "\nTry again: Enter the directory you want to search exactly as you have it mapped on your computer: "
@@ -250,7 +250,7 @@ while answer not in ("yes", "no"):
             exit()
         break
     else:
-        print("Please enter yes or no.")
+        print("Please Enter y or n.")
 
 # create list placeholders for filetype search results
 match_docx_items = []
@@ -419,7 +419,7 @@ searched_df = searched_df.sort_values(by=["file_name"]).drop_duplicates(
 )
 
 # remove regex characters from keyword column
-searched_df['keyword_match'] = searched_df['keyword_match'].str.replace('\W', ' ', regex=True)
+searched_df['keyword_match'] = searched_df['keyword_match'].str.replace(r'\W', ' ', regex=True)
 searched_df['keyword_match'] = searched_df['keyword_match'].apply(lambda x: x.replace('6  A   6  a ', '6A'))
 searched_df['keyword_match'] = searched_df['keyword_match'].apply(lambda x: x.lstrip())
 searched_df['keyword_match'] = searched_df['keyword_match'].apply(lambda x: x.replace('ba', 'a'))

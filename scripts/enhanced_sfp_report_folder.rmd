@@ -1,9 +1,16 @@
 ---
-author: "Copyright: Optimization Team 2023"
+author: "Copyright: Optimization Team 2025"
 date: "Compiled on `r format(Sys.time(), '%B %d, %Y')`"
 output: 
-  prettydoc::html_pretty:
-    theme: "architect"
+    pdf_document:
+      keep_tex: false
+      df_print: kable
+      highlight: breezedark
+      latex_engine: xelatex
+      includes:
+          in_header: header.tex
+urlcolor: blue
+linkcolor: cyan
 params:
   data:
     label: "Input file:"
@@ -22,28 +29,17 @@ params:
     label: "Folder Name:"
     value: "SFP_Folder"
     input: text
-  quarter:
-    label: "Quarter:"
-    value: Q1
-    input: select
-    choices: [Q1, Q2, Q3, Q4]
-  fiscal:
-    label: "Fiscal Year:"
-    value: FY21-22
-    input: select
-    choices: [FY22-23, FY23-24, FY24-25]
   collected:
     label: "datestamp on OCIO file:"
-    value: 2022-05-05
+    value: 2025-03-28
     input: text
 title: |
-  ![](GFX_OptimizationLogo-Icon_v2.png){width=350px}  
-  SFP Enhanced Report on `r params$folder` <br> `r params$fiscal` `r params$quarter` 
-subtitle: "Data collected on `r params$collected` for Ministry of `r params$ministry`"
+  SFP Enhanced Folder Report on `r params$folder` (`r params$ministry`)
+subtitle: "Data collected on `r params$collected`"
 ---
 
 ```{r setup, include=FALSE}
-knitr::opts_chunk$set(echo=TRUE, warning=FALSE, message=FALSE, fig.width=7, fig.height=5, fig.path='figure/')
+knitr::opts_chunk$set(echo = TRUE, warning = FALSE, message = FALSE, fig.width = 7, fig.height = 5, fig.align = "center", dev = "cairo_pdf", fig.pos = "H", fig.path = 'figure/', out.extra = "")
 library(data.table)
 library(DT)
 library(dbplyr)
@@ -51,16 +47,18 @@ library(dplyr)
 library(forcats)
 library(glue)
 library(here)
-library(htmltools)
 library(knitr)
 library(lubridate)
+library(magrittr)
 library(openxlsx)
+library(purrr)
 library(scales)
 library(stringr)
 library(stringi)
 library(tidyverse)
 library(shiny)
 library(zoo)
+library(kableExtra)
 
 # set working directory
 here::here()
@@ -168,6 +166,16 @@ folder_category_size <- folder_category_size[order(-folder_category_size$"monthl
 
 folder_category_size$"monthly cost" <- dollar(folder_category_size$"monthly cost")
 folder_category_size$"number of files" <- format(folder_category_size$"number of files", big.mark = ",", scientific = FALSE)
+folder_category_size$"Size(GB)" <- format(folder_category_size$"Size(GB)", digits = 3, big.mark = ",", scientific = FALSE)
+
+folder_category_size <- folder_category_size %>% 
+  rename(
+    Category = category,
+    "File Count" = "number of files",
+    "Monthly Cost" = "monthly cost"
+    )
+
+folder_category_size <- kbl(folder_category_size, booktabs = T) %>% kable_styling(latex_options = c("striped", "hold_position"))
 ```
 
 ```{r category breakdown by sub folders, include = FALSE}
@@ -177,6 +185,8 @@ subfolder_category_size <- formatted_sfp_data %>%
   select(path, category, "number of files", "folder size gb", "monthly cost", "object storage cost")
 
 subfolder_category_size <- subfolder_category_size[order(-subfolder_category_size$"monthly cost"),]
+
+subfolder_category_size$"folder size gb" <- format(subfolder_category_size$"folder size gb", digits = 3)
 ```
 
 ```{r create table with folder size, depth, and file tally, include = FALSE}
@@ -217,7 +227,7 @@ max_depth <- as.integer(max(table_pathsize_tallyfiles$folderdepth))
 
 ```{r size of entire folder in GB, echo = FALSE}
 folder_size <- sum(table_pathsize_tallyfiles$"folder size gb")
-foldersize <- format(folder_size, big.mark = ",", scientific = FALSE)
+foldersize <- format(folder_size, digits = 3, big.mark = ",", scientific = FALSE)
 ```
 
 ```{r folder cost, include = FALSE}
@@ -246,7 +256,7 @@ duplicate_files_formatted <- duplicate_files_formatted[order(-duplicate_files_fo
 dup_new <- duplicate_files[!duplicated(duplicate_files[ , c("filename", "sizegb")]), ]
 
 dup_size <- round(sum(dup_new$sizegb),2)
-dup_size_formatted <- format(dup_size, big.mark = ",", scientific = FALSE)
+dup_size_formatted <- format(dup_size, digits = 3, big.mark = ",", scientific = FALSE)
 
 dup_cost <- dollar(dup_size * 2.7)
 ```
@@ -260,96 +270,75 @@ dup_percent <- format(round(dup_percent, 1), nsmall = 1)
 
 dist_dup <- format(dist_dup, big.mark = ",", scientific = FALSE)
 ```
-
-```{r find files older than 5 yrs, include = FALSE}
+```{r find files older than 2.5 yrs, include = FALSE}
 # convert the data collected text to date, subtract 5 years
 date <- as.Date({params$collected}, "%Y-%m-%d")
-dt_less5 <- ymd(date) - years(5)
+dt_less30mo <- ymd(date) - months(30)
 
-# files last accessed more than 5 years ago
-files_accessed_5plus <- formatted_sfp_data %>% 
-  filter(lastaccessdate < dt_less5) %>% 
+# files last accessed more than 2.5 years ago
+files_accessed_30mo <- formatted_sfp_data %>% 
+  filter(lastaccessdate < dt_less30mo) %>% 
   select(filename, path, category, sizegb, monthly_cost, lastaccessdate) 
 
-files_accessed_5plus <- files_accessed_5plus[(order(as.Date(files_accessed_5plus$lastaccessdate))),]
+files_accessed_30mo <- files_accessed_30mo[(order(as.Date(files_accessed_30mo$lastaccessdate))),]
 
-
-# files last modified more than 5 years ago
-files_modified_5plus <- formatted_sfp_data %>% 
-  filter(modificationdate < dt_less5) %>% 
-  select(filename, path, category, sizegb, monthly_cost, modificationdate)
-
-files_modified_5plus <- files_modified_5plus[(order(as.Date(files_modified_5plus$modificationdate))),]
+la_30mo_gb <- round(sum(files_accessed_30mo$sizegb),3)
+la_30mos_gb <- format(la_30mo_gb, big.mark = ",", scientific = FALSE)
+la_30mo_cost <- dollar(la_30mo_gb * 2.7)
 ```
 
-```{r count the old files, include = FALSE}
-la_count <- nrow(files_accessed_5plus)
-lm_count <- nrow(files_modified_5plus)
+```{r count the aged-out files, include = FALSE}
+la_count <- nrow(files_accessed_30mo)
 
-la_5plus_count <- format(la_count, big.mark = ",", scientific = FALSE)
-lm_5plus_count  <- format(lm_count, big.mark = ",", scientific = FALSE)
+la_30mo_count <- format(la_count, big.mark = ",", scientific = FALSE)
 
 la_percent <- (la_count / count_files) * 100
-lm_percent <- (lm_count / count_files) * 100
 
 la_percent <- format(round(la_percent, 1), nsmall = 1)
-lm_percent <- format(round(lm_percent, 1), nsmall = 1)
 ```
 
-## SFP Information
+\section{SFP Information}
+The `r {params$folder}` folder on SFP is \textbf{`r {foldersize}` GB}, costing the ministry **`r {folder_cost}`** per month. 
 
-The amount of included data in the SFP folder for `r {params$folder}` is `r {foldersize}` GB. 
+`r {params$folder}` contains `r {count_files_formatted}` files and `r {folder_count}` folders (excluding files & folders under 1MB).
 
-The monthly cost of the included data in the `r {params$folder}` folder is **`r {folder_cost}`**.
+\section{Duplicate Files}
+\textbf{\textit{Definition:}} \textit{same name and size as another file, located within a sub-folder.}
 
-The `r {params$folder}` folder includes `r {count_files_formatted}` files over 1MB. 
-
-There are `r {folder_count}` folders in the `r {params$folder}` folder (excluding folders under 1MB).  
-
-- The average folder depth for the `r {params$folder}` folder is `r {mean_depth}`, and the maximum is `r {max_depth}`. 
-
-### Duplicate Files
-
-Definition: same name & size as another file, located in a different sub-folder within `r {params$folder}`.  
-
-Duplicate files make up approx. `r {dup_percent}`% of included SFP content for the `r {params$folder}` folder, totalling `r {dup_size_formatted}` GB. This represents <u>`r {dist_dup}` files</u>  with at least one copy.  
+Duplicate files over 1MB make up **`r {dup_percent}`%** of the `r {params$folder}` folder, totalling \textbf{`r {dup_size_formatted}` GB}. This represents \textbf{`r {dist_dup}` files} with at least one copy.  
   
-Approx. <span style="color: red;">`r {dup_cost}` per month</span> could be saved by cleaning up duplicates in the `r {params$folder}` folder!  
+\raggedright Approximately \fontspec[Color=Red]{Verdana Bold}`r {dup_cost}` per month \fontspec[Color=Black]{Verdana}could be saved by cleaning up duplicates in the `r {params$folder}` folder.
 
-### Older Files
+\section{Older Files}
+**`r {la_percent}`%** of files over 1MB were last accessed at least 2.5 years ago \textit{(`r {la_30mo_count}` files)}. This represents \textbf{`r {la_30mos_gb}` GB} of data at a monthly cost of \fontspec[Color=Red]{Verdana Bold}`r {la_30mo_cost}`\fontspec[Color=Black]{Verdana}.
+\clearpage
 
-`r {la_percent}`% of files were last accessed over 5 years ago (`r {la_5plus_count}` files).  
+\begin{center}
+\section{Data Categories}
+\textbf{`r {params$folder}` SFP Consumption by Data Category}
+`r {folder_category_size}` 
+\href{https://apps.nrs.gov.bc.ca/int/confluence/download/attachments/73305882/Enhanced_Reporting_File_Categories_File_Extensions.pdf?version=1&modificationDate=1655238221000&api=v2}{List of category file types} provided by the OCIO.
+\end{center}
+\clearpage
 
-### Data Categories
-  
-<div align="center"><span style="color: #234075;">**`r {params$folder}` Consumption by Data Category**</span></div>
-`r datatable(folder_category_size, rownames = FALSE, colnames = c('Category' = 1, 'Number of Files' = 2, 'Size(GB)' = 3, 'Cost per Month' = 4), options=list(columnDefs = list(list(className = 'dt-left', targets="_all"))))` 
-[List of category file types](https://apps.nrs.gov.bc.ca/int/confluence/download/attachments/73305882/Enhanced_Reporting_File_Categories_File_Extensions.pdf?version=1&modificationDate=1655238221000&api=v2) provided by the OCIO.
+\section{About our Data Sources}
+The source data for this report is collected quarterly from the OCIO and \textcolor{red}{does not include any files under 1MB}. This is done by design to keep the reports manageable, as including files under 1 MB would greatly increase the report.
 
----
+\section{SFP Reduction Goals}
+#### Records management and data migration to address rising storage costs
 
-## About our Data Sources
-
-*   The source data for this report is collected from the OCIO and <span style="color: red;">does not include any files under 1MB</span>. This is done by design to keep the reports manageable, as including files under 1 MB would increase the report size tenfold.
-
-*   The OCIO data is available quarterly for analysis (Jan, Apr, Jul, Oct).
-
----
-
-## SFP Reduction Goals - Records Management and Migration to Address Rising Storage Costs
-
+- [Fiscal Year 2025-2026 Chart of NRM SFP Consumption](http://nrmccp-metabase.apps.silver.devops.gov.bc.ca/public/dashboard/5e12786a-2692-41de-b083-5dacc8492417) 
 - [Fiscal Year 2024-2025 Chart of NRM SFP Consumption](http://nrmccp-metabase.apps.silver.devops.gov.bc.ca/public/dashboard/4e59fe00-e957-4336-9106-e5aa9a645f78) 
-- [Fiscal Year 2023-2024 Chart of NRM SFP Consumption](http://nrmccp-metabase.apps.silver.devops.gov.bc.ca/public/dashboard/709e5e4e-fd84-4653-a77d-2074b2d44110) 
 
-- Interested in reducing SFP consumption by migrating data to Object Storage? The Optimization Team has more information on [Confluence](https://apps.nrs.gov.bc.ca/int/confluence/display/OPTIMIZE/NRM+Object+Storage+Service) or you can place a request through the [Jira Service Desk](https://apps.nrs.gov.bc.ca/int/jira/servicedesk/customer/portal/1/create/701) after reading our [Service Level Agreement](https://apps.nrs.gov.bc.ca/int/confluence/display/OPTIMIZE/Object+Storage+Forms?preview=/65671335/133730673/SLA_Revision_0.6.pdf). <br>
+- \raggedright To learn more about reducing SFP consumption by migrating data to Object Storage, visit the Optimization team's [Confluence page](https://apps.nrs.gov.bc.ca/int/confluence/display/OPTIMIZE/NRM+Object+Storage+Service). You can also place a request through the [Jira Service Desk](https://apps.nrs.gov.bc.ca/int/jira/servicedesk/customer/portal/1/create/701) - please read the [Service Level Agreement](https://apps.nrs.gov.bc.ca/int/confluence/display/OPTIMIZE/Object+Storage+Forms?preview=/65671335/133730673/SLA_Revision_0.6.pdf) **before** submitting a request. 
 
 - [Contact the Optimization Team](mailto:NRIDS.Optimize@gov.bc.ca)
 
-- Do you have questions about appropriate Records Management for your data? Visit [Government Records Services](https://www2.gov.bc.ca/gov/content/governments/services-for-government/information-management-technology/records-management) or [Contact the GRS Team](mailto:grs@gov.bc.ca)
+- Do you have questions about appropriate Records Management for your data? Visit the [Government Information Management Branch](https://www2.gov.bc.ca/gov/content/governments/services-for-government/information-management-technology/records-management) or [Contact the GIM Team](mailto:gim@gov.bc.ca)
 
 ```{r dynamic output name, include = FALSE}
 # create output file names based on parameters
-output_excel = paste0("SFP_Enhanced_Report_", params$ministry, "_", params$folder, "_", params$quarter, "_", params$fiscal, ".xlsx")
+output_excel = paste0("SFP_Enhanced_Report_", params$ministry, "_", params$folder, "_", params$collected, ".xlsx")
 ```
 
 ```{r write output to Excel file, include = FALSE}
@@ -359,8 +348,8 @@ excel <- createWorkbook(output_excel)
 # create sheet names
 firstSheet = "Folder Details"
 secondSheet = "Duplicate Files"
-thirdSheet = "Last Accessed 5+ Years"
-fourthSheet = "Category Details"
+thirdSheet = "Last Accessed 2.5+ Years"
+fourthSheet = "Category Details by Folder"
 fifthSheet = "Category Extensions"
 
 # add worksheets to workbook
@@ -371,11 +360,11 @@ sheet.names(fourthSheet)
 sheet.names(fifthSheet)
 
 # assign data tables to worksheets, apply filter across all sheets
-dt.worksheets(1,table_pathsize_tallyfiles) 
-dt.worksheets(2,duplicate_files_formatted)
-dt.worksheets(3,files_accessed_5plus)
-dt.worksheets(4,subfolder_category_size) 
-dt.worksheets(5,sfp_categories_filetypes) 
+dt.worksheets(1, table_pathsize_tallyfiles)
+dt.worksheets(2, duplicate_files_formatted) 
+dt.worksheets(3, files_accessed_30mo) 
+dt.worksheets(4, subfolder_category_size)
+dt.worksheets(5 ,sfp_categories_filetypes)
 
 # freeze top row of all sheets
 freeze.panes(1)
@@ -385,21 +374,20 @@ freeze.panes(4)
 freeze.panes(5)
 
 # set custom column widths for all sheets
-setColWidths(excel, sheet = 1, cols = c(1, 2:6), widths = c(75, 20, 20, 20, 20,20))
+setColWidths(excel, sheet = 1, cols = c(1, 2:6), widths = c(75, 20, 20, 20, 20, 20))
 setColWidths(excel, sheet = 2, cols = c(1, 2, 3:8), widths = c(50, 75, 20, 20, 20, 20, 20, 20))
 setColWidths(excel, sheet = 3, cols = c(1, 2, 3:8), widths = c(50, 75, 20, 20, 20, 20, 20, 20))
-setColWidths(excel, sheet = 4, c(1, 2:6), widths = c(75, 20, 20, 20, 20, 20))
-setColWidths(excel, sheet = 5, c(1:2), widths = c(20, 20))
+setColWidths(excel, sheet = 4, cols = c(1, 2:6), widths = c(75, 20, 20, 20, 20, 20))
+setColWidths(excel, sheet = 5, cols = c(1:2), widths = c(20, 20))
 
 # set currency format on column
 sty1 = createStyle(numFmt="$0.00")
 addStyle(excel, sheet = 1, sty1, rows=2:(nrow(table_pathsize_tallyfiles)+1), cols=5)
 addStyle(excel, sheet = 1, sty1, rows=2:(nrow(table_pathsize_tallyfiles)+1), cols=6)
 addStyle(excel, sheet = 2, sty1, rows=2:(nrow(duplicate_files_formatted)+1), cols=5)
-addStyle(excel, sheet = 3, sty1, rows=2:(nrow(files_accessed_5plus)+1), cols=5)
+addStyle(excel, sheet = 3, sty1, rows=2:(nrow(files_accessed_30mo)+1), cols=5)
 addStyle(excel, sheet = 4, sty1, rows=2:(nrow(subfolder_category_size)+1), cols=5)
 addStyle(excel, sheet = 4, sty1, rows=2:(nrow(subfolder_category_size)+1), cols=6)
-addStyle(excel, sheet = 5, sty1, rows=2:(nrow(sfp_categories_filetypes)+1), cols=5)
 
 # save the workbook to file
 saveWorkbook(excel, file = here("output", output_excel), overwrite = TRUE)
