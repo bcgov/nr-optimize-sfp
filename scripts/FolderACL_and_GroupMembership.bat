@@ -1,0 +1,1 @@
+PowerShell -NoProfile -ExecutionPolicy Bypass -Command "& '%cd%\FolderACL_and_GroupMembership.ps1'"
