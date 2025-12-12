@@ -1,19 +1,33 @@
 #
-# Rollback-Acls.ps1
-# Restores NTFS ACLs from backup sidecars created by Apply-FolderAcls.ps1 (v2).
-# Prefers SDDL backups (.sddl) for reliable restore; falls back to JSON if it contains Sddl.
+# ================================================================================================
+# Rollback-Acls.ps1 (v2)
+# --------------------------------------------------------------------------------
+# PURPOSE
+#   Restore NTFS ACLs from sidecar backups (.sddl preferred, .json fallback when containing Sddl)
+#   created by Apply-FolderAcls.ps1 with -BackupAcl.
 #
-# USAGE EXAMPLES
-#   # Roll back all folders listed in the same CSV you used to apply:
+# TARGET SELECTION (choose ONE)
+#   -CsvPath <path> : restore all folders listed under "Folder Name" in the CSV.
+#   -Path <paths>   : restore specific folder paths.
+#   -Root <dir> [-Recurse] : scan for .ACLBackup_*.sddl under a root and restore.
+#
+# EXAMPLES (copy/paste)
+#   # 1) Roll back all folders listed in the CSV (preview only)
 #   .\Rollback-Acls.ps1 -CsvPath .\Folder_Permissions.csv -WhatIf
+#   
+#   # 2) Roll back all folders listed in the CSV (apply)
 #   .\Rollback-Acls.ps1 -CsvPath .\Folder_Permissions.csv
-#
-#   # Or specify explicit paths:
+#   
+#   # 3) Roll back specific folders
 #   .\Rollback-Acls.ps1 -Path E:\GeoDriveCache\wlrsobj3\LUPCE\CSCEM, E:\GeoDriveCache\wlrsobj3\LUPCE\PSSP
-#
-#   # Search recursively from a root for .ACLBackup_*.sddl and restore them:
+#   
+#   # 4) Roll back by scanning a root for backups
 #   .\Rollback-Acls.ps1 -Root E:\GeoDriveCache\wlrsobj3 -Recurse
 #
+# SAFETY
+#   - Supports -WhatIf to preview restorations and logs to Rollback-Acls.log.
+# ================================================================================================
+
 param(
     [string]$CsvPath,
     [string[]]$Path,
@@ -36,9 +50,8 @@ function Get-BackupFilesForPath { param([string]$p)
 }
 
 $targets = @()
-if ($Path -and $Path.Count -gt 0) {
-    $targets += $Path
-} elseif ($CsvPath) {
+if ($Path -and $Path.Count -gt 0) { $targets += $Path }
+elseif ($CsvPath) {
     if (-not (Test-Path -LiteralPath $CsvPath)) { Write-Error "CSV not found: $CsvPath"; exit 1 }
     $rows = Import-Csv -Path $CsvPath
     if (-not ($rows | Get-Member -MemberType NoteProperty | Where-Object Name -eq 'Folder Name')) { Write-Error "CSV missing 'Folder Name' column."; exit 1 }
@@ -47,15 +60,8 @@ if ($Path -and $Path.Count -gt 0) {
     if (-not (Test-Path -LiteralPath $Root)) { Write-Error "Root path not found: $Root"; exit 1 }
     $pattern = ".ACLBackup_*.sddl"
     $files = Get-ChildItem -Path $Root -Filter $pattern -File -Recurse:$Recurse
-    foreach ($f in $files) {
-        # Infer target folder from backup filename
-        $leaf = ($f.BaseName -replace '^\.ACLBackup_', '')
-        $p = Join-Path $f.Directory.FullName $leaf
-        $targets += $p
-    }
-} else {
-    Write-Error "Provide -CsvPath, -Path, or -Root."; exit 1
-}
+    foreach ($f in $files) { $leaf = ($f.BaseName -replace '^\.ACLBackup_', ''); $p = Join-Path $f.Directory.FullName $leaf; $targets += $p }
+} else { Write-Error "Provide -CsvPath, -Path, or -Root."; exit 1 }
 
 if ($targets.Count -eq 0) { Write-Error "No target folders to restore."; exit 1 }
 
@@ -64,41 +70,18 @@ foreach ($t in $targets) {
     $bk = Get-BackupFilesForPath -p $t
 
     $sddlContent = $null
-
-    if (Test-Path -LiteralPath $bk.Sddl) {
-        $sddlContent = Get-Content -LiteralPath $bk.Sddl -Raw
-        Write-Log "Found SDDL backup: $($bk.Sddl)"
-    } elseif (Test-Path -LiteralPath $bk.Json) {
-        try {
-            $j = Get-Content -LiteralPath $bk.Json -Raw | ConvertFrom-Json
-            if ($j.PSObject.Properties.Name -contains 'Sddl') {
-                $sddlContent = $j.Sddl
-                Write-Log "Found SDDL in JSON backup: $($bk.Json)"
-            } else {
-                Write-Log "ERROR: JSON backup lacks Sddl property: $($bk.Json). Cannot auto-restore."
-                continue
-            }
-        } catch {
-            Write-Log "ERROR: Failed to parse JSON backup: $($bk.Json): $($_.Exception.Message)"
-            continue
-        }
-    } else {
-        Write-Log "ERROR: No backup files found for $t (expected $($bk.Sddl) or $($bk.Json))"
-        continue
-    }
+    if (Test-Path -LiteralPath $bk.Sddl) { $sddlContent = Get-Content -LiteralPath $bk.Sddl -Raw; Write-Log "Found SDDL backup: $($bk.Sddl)" }
+    elseif (Test-Path -LiteralPath $bk.Json) {
+        try { $j = Get-Content -LiteralPath $bk.Json -Raw | ConvertFrom-Json; if ($j.PSObject.Properties.Name -contains 'Sddl') { $sddlContent = $j.Sddl; Write-Log "Found SDDL in JSON backup: $($bk.Json)" } else { Write-Log "ERROR: JSON backup lacks Sddl property: $($bk.Json)."; continue } }
+        catch { Write-Log "ERROR: Failed to parse JSON backup: $($bk.Json): $($_.Exception.Message)"; continue }
+    } else { Write-Log "ERROR: No backup files found for $t (expected $($bk.Sddl) or $($bk.Json))"; continue }
 
     try {
         $sec = New-Object System.Security.AccessControl.DirectorySecurity
         $sec.SetSecurityDescriptorSddlForm($sddlContent)
-        if ($WhatIf) {
-            Write-Log "WHATIF: Would restore ACL on $t from SDDL."
-        } else {
-            Set-Acl -LiteralPath $t -AclObject $sec
-            Write-Log "Restored ACL on $t"
-        }
-    } catch {
-        Write-Log "ERROR restoring ACL on $t: $($_.Exception.Message)"
-    }
+        if ($WhatIf) { Write-Log "WHATIF: Would restore ACL on $t from SDDL." }
+        else { Set-Acl -LiteralPath $t -AclObject $sec; Write-Log "Restored ACL on $t" }
+    } catch { Write-Log "ERROR restoring ACL on $t: $($_.Exception.Message)" }
 }
 
 Write-Log "Rollback completed."

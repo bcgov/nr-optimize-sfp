@@ -1,7 +1,41 @@
 #
-# Apply-FolderAcls.ps1 (v2)
-# Bulk-apply NTFS ACLs from a CSV. CSV permissions win by default.
-# Adds SDDL backups alongside JSON for reliable rollback.
+# ================================================================================================
+# Apply-FolderAcls.ps1 (v4)
+# --------------------------------------------------------------------------------
+# PURPOSE
+#   Bulk-apply NTFS ACLs from a CSV in a repeatable, safe manner.
+#
+# INPUT CSV FORMAT (header row required)
+#   "Folder Name","Group/User","Permissions","Inherited","Inheritance","Propagation"
+#
+# DEFAULTS
+#   - CSV Permissions WIN by default.
+#   - Suffix bundles (__R/__C/__F/__T/__L; __D sets Deny) are available but OFF unless -PreferSuffixRights.
+#   - No inheritance protection changes unless you enable the optional block.
+#   - Safety: -WhatIf preview, -BackupAcl sidecars (.json + .sddl), idempotent ACE add.
+#
+# EXAMPLES (copy/paste)
+#   # 1) Preflight separately (recommended)
+#   #    See Preflight-Validate-Acls.ps1 examples for validation.
+#   
+#   # 2) Dry-run with backups (no changes, creates backups for rollback)
+#   .\Apply-FolderAcls.ps1 -CsvPath .\Folder_Permissions.csv -WhatIf -BackupAcl
+#   
+#   # 3) Apply for real (CSV wins by default)
+#   .\Apply-FolderAcls.ps1 -CsvPath .\Folder_Permissions.csv -BackupAcl
+#   
+#   # 4) Prefer suffix bundles over CSV (for this run only)
+#   .\Apply-FolderAcls.ps1 -CsvPath .\Folder_Permissions.csv -PreferSuffixRights -BackupAcl
+#   
+#   # 5) Change bundle behavior: __T minimal, __L strict
+#   .\Apply-FolderAcls.ps1 -CsvPath .\Folder_Permissions.csv -TraversePure -ListStrict -BackupAcl
+#   
+#   # 6) Replace existing explicit ACEs for identities (ensures desired state)
+#   .\Apply-FolderAcls.ps1 -CsvPath .\Folder_Permissions.csv -ReplaceExistingExplicit -BackupAcl
+#
+# OPTIONAL INHERITANCE TOGGLE (disabled by default)
+#   - See the commented block near the end. Enable if you want to act on the CSV 'Inherited' column.
+# ================================================================================================
 
 param(
     [Parameter(Mandatory=$true)]
@@ -123,9 +157,7 @@ foreach ($row in $rows) {
             $backupBase = Join-Path (Split-Path -Parent $path) (".ACLBackup_" + (Split-Path -Leaf $path))
             $backupJson = $backupBase + ".json"
             $backupSddl = $backupBase + ".sddl"
-            # Save JSON for inspection
             $acl | ConvertTo-Json | Set-Content -Path $backupJson -Encoding utf8
-            # Save SDDL for robust rollback
             Set-Content -Path $backupSddl -Value $acl.Sddl -Encoding utf8
             Write-Log "Backup ACL exported: $backupJson and $backupSddl"
         }
@@ -152,6 +184,22 @@ foreach ($row in $rows) {
         $msg = "APPLY: $identity on $path => $effectiveRightsText [$inheritText | $propText] ($accessType)"
         if ($WhatIf) { Write-Log "WHATIF: $msg" }
         else { $acl.AddAccessRule($rule) | Out-Null; Set-Acl -LiteralPath $path -AclObject $acl; Write-Log $msg }
+
+        # OPTIONAL: Inheritance protection based on CSV 'Inherited' (disabled by default)
+        # Uncomment to enable:
+        # $inheritedRaw = $row.'Inherited'
+        # if ($null -ne $inheritedRaw) {
+        #   $shouldProtect = ($inheritedRaw.Trim().ToLower() -eq 'false')
+        #   $copyInherited = $true
+        #   if ($shouldProtect -and -not $acl.AreAccessRulesProtected) {
+        #       Write-Log "Protecting ACL (block inheritance) for $path (copyInherited=$copyInherited)"
+        #       if (-not $WhatIf) { $acl.SetAccessRuleProtection($true, $copyInherited); Set-Acl -LiteralPath $path -AclObject $acl }
+        #   } elseif (-not $shouldProtect -and $acl.AreAccessRulesProtected) {
+        #       Write-Log "Unprotecting ACL (enable inheritance) for $path"
+        #       if (-not $WhatIf) { $acl.SetAccessRuleProtection($false, $true); Set-Acl -LiteralPath $path -AclObject $acl }
+        #   }
+        # }
+
     } catch { Write-Log "ERROR applying ACL to $path for $identity: $($_.Exception.Message)" }
 }
 
