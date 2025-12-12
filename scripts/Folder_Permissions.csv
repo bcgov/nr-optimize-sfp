@@ -1,0 +1,3 @@
+﻿Folder Name,Group/User,Permissions,Inherited,Inheritance,Propagation
+absolute path here,IDIR\userID,"Write, ReadAndExecute, Synchronize",FALSE,"ContainerInherit, ObjectInherit",None
+absolute path here,IDIR\groupID,"ReadAndExecute, Synchronize",FALSE,None,None
