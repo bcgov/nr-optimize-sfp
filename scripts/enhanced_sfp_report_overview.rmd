@@ -1,5 +1,5 @@
 ---
-author: "Copyright: Optimization Team 2025"
+author: "Copyright: Optimization Team 2026"
 date: "Compiled on `r format(Sys.time(), '%B %d, %Y')`"
 output: 
     pdf_document:
@@ -20,10 +20,10 @@ params:
     label: "Ministry Name:"
     value: BCWS
     input: select
-    choices: [AF, BCWS, EMLI, ENV, FOR, IRR, WLRS]
+    choices: [AF, BCWS, ECS, ENV, FOR, IRR, MCM, WLRS]
   collected:
     label: "datestamp on OCIO file:"
-    value: 2025-03-28
+    value: 2026-03-31
     input: text
 title: |
   Enhanced SFP Report for `r params$ministry` 
@@ -74,13 +74,14 @@ sfp_data <- read_csv((here("source", glue("{params$data}", col_types = cols(), n
 sfp_data <- sfp_data[,c(1:9)]
 
 # rename columns
-colnames(sfp_data) <- c("filename", "path", "filetype","category","sizemb","lastaccessdate","modificationdate","creationdate","share")
+colnames(sfp_data) <- c("filename", "path", "filetype","category","sizemb","lastaccessdate", "modificationdate", "creationdate","share")
 ```
 
 ```{r folder search, include = FALSE}
 formatted_sfp_data <- sfp_data %>%
-  mutate(folderdepth = stri_count_fixed(path, "/") -5) %>% 
-  mutate(root = word(path, 1, 7, sep = "/")) %>%
+  mutate(path = remap_substrings(path)) %>% 
+  mutate(folderdepth = stri_count_fixed(path, "\\") - 5) %>% 
+  mutate(root = word(path, 1, 7, sep = "\\\\")) %>%
   mutate(sizegb = sizemb / 1000) %>% 
   mutate(sizegb = round(sizegb, 3)) %>% 
   mutate(monthly_cost = sizegb * 2.7) %>% 
@@ -229,7 +230,7 @@ table_pathsize_tallyfiles <- inner_join(calculate_folder_size,folder_filetally, 
 
 ```{r calculate folder depth, include = FALSE}
 # Count the number of '/'s in each element of string
-table_pathsize_tallyfiles$folderdepth <- stri_count_fixed(table_pathsize_tallyfiles$path, "/") 
+table_pathsize_tallyfiles$folderdepth <- stri_count_fixed(table_pathsize_tallyfiles$path, "\\")
 # Start the folder depth count AFTER the share ie. after /ifs/sharedfile/top_level/C##/
 table_pathsize_tallyfiles$folderdepth <- table_pathsize_tallyfiles$folderdepth - 5
 ```
@@ -275,27 +276,30 @@ dist_dup <- nrow(dup_new) # count of each original file that has a duplicate
 dist_dup <- format(dist_dup, big.mark = ",", scientific = FALSE)
 ```
 
-```{r find files older than 2.5 yrs, include = FALSE}
-# convert the data collected text to date, subtract 5 years
-date <- as.Date({params$collected}, "%Y-%m-%d")
-dt_less30mo <- ymd(date) - months(30)
+```{r find older files, include = FALSE}
+# convert the data collected text to date, subtract time for last accessed preference
+dt_threshold <- file_age_threshold(
+  collected_date = params$collected,
+  ministry       = params$ministry
+)
 
-# files last accessed more than 2.5 years ago
-files_accessed_30mo <- formatted_sfp_data %>% 
-  filter(lastaccessdate < dt_less30mo) %>% 
+# files last accessed more than a certain time ago
+files_accessed_old <- formatted_sfp_data %>%
+  filter(lastaccessdate < dt_threshold) %>%
   select(filename, path, category, sizegb, monthly_cost, lastaccessdate) 
 
-files_accessed_30mo <- files_accessed_30mo[(order(as.Date(files_accessed_30mo$lastaccessdate))),]
+files_accessed_old <- files_accessed_old[(order(as.Date(files_accessed_old$lastaccessdate))),]%>% 
+  select(filename, path, category, sizegb, monthly_cost, lastaccessdate)
 
-la_30mo_gb <- round(sum(files_accessed_30mo$sizegb),3)
-la_30mos_gb <- format(la_30mo_gb, big.mark = ",", scientific = FALSE)
-la_30mo_cost <- dollar(la_30mo_gb * 2.7)
+la_old_gb_num <- round(sum(files_accessed_old$sizegb),3)
+la_old_gb <- format(la_old_gb_num, big.mark = ",", scientific = FALSE)
+la_old_cost <- dollar(la_old_gb_num * 2.7)
 ```
 
 ```{r count the aged-out files, include = FALSE}
-la_count <- nrow(files_accessed_30mo)
+la_count <- nrow(files_accessed_old)
 
-la_30mo_count <- format(la_count, big.mark = ",", scientific = FALSE)
+la_old_count <- format(la_count, big.mark = ",", scientific = FALSE)
 
 la_percent <- (la_count / count_files) * 100
 
@@ -345,7 +349,7 @@ Duplicate files over 1MB make up **`r {dup_percent}`%** of `r {params$ministry}`
 Approximately \fontspec[Color=Red]{Verdana Bold}`r {dup_cost}` per month \fontspec[Color=Black]{Verdana}could be saved by cleaning up SFP duplicates in `r {params$ministry}`.
 
 \section{Older Files}
-**`r {la_percent}`%** of files over 1MB were last accessed at least 2.5 years ago \textit{(`r {la_30mo_count}` files)}. This represents \textbf{`r {la_30mos_gb}` GB} of data at a monthly cost of \fontspec[Color=Red]{Verdana Bold}`r {la_30mo_cost}`\fontspec[Color=Black]{Verdana}.
+**`r la_percent`%** of files over 1MB were last accessed at least **`r file_age_label(params$ministry)`** ago \textit{(`r {la_old_count}` files)}. This represents \textbf{`r {la_old_gb}` GB} of data at a monthly cost of \fontspec[Color=Red]{Verdana Bold}`r {la_old_cost}`\fontspec[Color=Black]{Verdana}.
 \clearpage
 
 \begin{center}
@@ -369,13 +373,12 @@ We are using primary and secondary data from the same month for analysis.
 #### Records management and data migration to address rising storage costs
 
 - [Fiscal Year 2025-2026 Chart of NRM SFP Consumption](http://nrmccp-metabase.apps.silver.devops.gov.bc.ca/public/dashboard/5e12786a-2692-41de-b083-5dacc8492417) 
-- [Fiscal Year 2024-2025 Chart of NRM SFP Consumption](http://nrmccp-metabase.apps.silver.devops.gov.bc.ca/public/dashboard/4e59fe00-e957-4336-9106-e5aa9a645f78) 
 
 - \raggedright To learn more about reducing SFP consumption by migrating data to Object Storage, visit the Optimization team's [Confluence page](https://apps.nrs.gov.bc.ca/int/confluence/display/OPTIMIZE/NRM+Object+Storage+Service). You can also place a request through the [Jira Service Desk](https://apps.nrs.gov.bc.ca/int/jira/servicedesk/customer/portal/1/create/701) - please read the [Service Level Agreement](https://apps.nrs.gov.bc.ca/int/confluence/display/OPTIMIZE/Object+Storage+Forms?preview=/65671335/133730673/SLA_Revision_0.6.pdf) **before** submitting a request. 
 
 - [Contact the Optimization Team](mailto:NRIDS.Optimize@gov.bc.ca)
 
-- Do you have questions about appropriate Records Management for your data? Visit the [Government Information Management Branch](https://www2.gov.bc.ca/gov/content/governments/services-for-government/information-management-technology/records-management) or [Contact the GIM Team](mailto:gim@gov.bc.ca)
+`r records_management_text(params$ministry)`
 
 ```{r dynamic output name, include = FALSE}
 # create output file name based on parameters
@@ -390,7 +393,7 @@ excel <- createWorkbook(output_excel)
 firstSheet = "SFP Details"
 secondSheet = "Share Folder Details"
 #thirdSheet = "Duplicate Files"
-#fourthSheet = "Last Accessed 2.5+ Years"
+#fourthSheet = "Older Files"
 fifthSheet = "Category Extensions"
 
 # add worksheets to workbook
@@ -404,7 +407,7 @@ sheet.names(fifthSheet)
 dt.worksheets(1, table_sfp) 
 dt.worksheets(2, table_sfp_share)
 #dt.worksheets(3, duplicate_files_formatted) 
-#dt.worksheets(4, files_accessed_30mo)
+#dt.worksheets(4, files_accessed_old)
 dt.worksheets(3, sfp_categories_filetypes)
 
 
@@ -429,7 +432,7 @@ addStyle(excel, sheet = 1, sty1, rows=2:(nrow(table_sfp)+1), cols=5)
 addStyle(excel, sheet = 2, sty1, rows=2:(nrow(table_sfp_share)+1), cols=4)
 addStyle(excel, sheet = 2, sty1, rows=2:(nrow(table_sfp_share)+1), cols=5)
 #addStyle(excel, sheet = 3, sty1, rows=2:(nrow(duplicate_files_formatted)+1), cols=5)
-#addStyle(excel, sheet = 4, sty1, rows=2:(nrow(files_accessed_30mo)+1), cols=5)
+#addStyle(excel, sheet = 4, sty1, rows=2:(nrow(files_accessed_old)+1), cols=5)
 addStyle(excel, sheet = 3, sty1, rows=2:(nrow(sfp_categories_filetypes)+1), cols=5)
 
 # save the workbook to file

@@ -35,14 +35,15 @@ library(ggplot2)
 
 #font_import()
 #loadfonts(device = "win")
+#loadfonts(); windowsFonts()
 #theme_set(theme_bw())
 here::here()
 ```
 
 ```{r, date variables for plots}
-collected <- as.Date("2024-07-04")
-quarter <- "Q2"
-fiscal <- "FY24-25"
+collected <- as.Date("2026-03-31")
+quarter <- "Q1"
+fiscal <- "FY26-27"
 cap <- glue('Source: OCIO Summary Report from {format(collected, "%B %d, %Y")}')
 ```
 
@@ -114,8 +115,8 @@ total_chart
 ```{r step 2 Customize layout, include = FALSE}
 total_chart <- total_chart + 
   scale_x_continuous(
-    limits = c(0, 23500),
-    breaks = seq(0, 23000, by = 2000),
+    limits = c(0, 10500),
+    breaks = seq(0, 10000, by = 1000),
     expand = c(0, 0), # The horizontal axis does not extend to either side
     position = "top"  # Labels are located on the top
   ) +
@@ -166,7 +167,7 @@ total_chart
 ```
 
 ```{r step 4 Add annotations and final tweaks, include = FALSE}
-pdf(here('figure', glue('total_nrm_hdrive_catplot_', quarter, '_', fiscal, '.pdf')))
+pdf(here('figure', glue('NRM_Total_Hdrive_Plot_', quarter, '_', fiscal, '.pdf')))
 
 total_chart <- total_chart + 
   labs(x = "Size (GB)", 
@@ -182,11 +183,11 @@ total_chart <- total_chart +
 
 total_chart
 
-print(total_chart)
+#print(total_chart)
 dev.off()
 
 ggsave(total_chart, 
-       filename = glue('total_nrm_hdrive_catplot_', quarter, '_', fiscal, '.png'),
+       filename = glue('NRM_Total_Hdrive_Plot_', quarter, '_', fiscal, '.png'),
        device = "png",
        height = 9, width = 8.25, units = "in")
 ```

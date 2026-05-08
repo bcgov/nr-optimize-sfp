@@ -1,5 +1,5 @@
 ---
-author: "Copyright: Optimization Team 2025"
+author: "Copyright: Optimization Team 2026"
 date: "Report compiled on `r format(Sys.time(), '%B %d, %Y')`"
 output: 
     pdf_document:
@@ -20,14 +20,14 @@ params:
     label: "Ministry Name:"
     value: AF
     input: select
-    choices: [AF, BCWS, EMLI, ENV, FOR, IRR, WLRS]
+    choices: [AF, BCWS, EMLI, ECS, ENV, FOR, IRR, MCM, WLRS]
   share:
     label: "Share Name to Search:"
     value: "S01234"
     input: text
   collected:
     label: "datestamp on OCIO file:"
-    value: 2025-03-28
+    value: 2026-03-31
     input: text
 title: |
   Enhanced SFP Report on Share `r params$share` (`r params$ministry`) 
@@ -78,21 +78,27 @@ colnames(sfp_data) <- c("filename", "path", "filetype","category","sizemb","last
 
 ```{r folder search, include = FALSE}
 formatted_sfp_data <- sfp_data %>%
-  mutate(share = gsub("\\", "", share, fixed = TRUE)) %>%
+  mutate(
+    share = gsub("\\", "", share, fixed = TRUE)
+  ) %>%
   filter(str_detect(share, {params$share})) %>%
-  mutate(root = word(path, 1, 7, sep = "\\\\")) %>%
-  mutate(sizegb = sizemb / 1000) %>% 
-  mutate(sizegb = round(sizegb, 3)) %>% 
-  mutate(filetype = str_extract(filename, "[^.]+$")) %>%
-  mutate(filetype = tolower(filetype)) %>% 
-  mutate(monthly_cost = sizegb * 2.7) %>% 
-  mutate(monthly_cost = round((monthly_cost), 2)) %>% 
-  mutate(obj_store_cost = sizegb * 0.07) %>% 
-  mutate(object_storage_cost = round((obj_store_cost), 2)) %>% 
-  mutate(lastaccessdate = convert.date(lastaccessdate)) %>% 
-  mutate(modificationdate = convert.date(modificationdate)) %>% 
-  mutate(creationdate = convert.date(creationdate)) %>%
-  select(filename, filetype, category, root, path, sizemb, sizegb, lastaccessdate, modificationdate, creationdate, monthly_cost, obj_store_cost, object_storage_cost)
+  mutate(
+    root  = stringr::word(path, 1, 7, sep = "\\\\"),
+    sizegb = round(sizemb / 1000, 3),
+    filetype = tolower(stringr::str_extract(filename, "[^.]+$")),
+    monthly_cost = round(sizegb * 2.7, 2),
+    obj_store_cost = sizegb * 0.07,
+    object_storage_cost = round(obj_store_cost, 2),
+    lastaccessdate   = convert.date(lastaccessdate),
+    modificationdate = convert.date(modificationdate),
+    creationdate     = convert.date(creationdate),
+    # <<< one-line remap of path values >>>
+    path = remap_substrings(path)) %>% 
+  select(filename, filetype, category, root, path, sizemb, sizegb,lastaccessdate, modificationdate, creationdate, monthly_cost, obj_store_cost, object_storage_cost)
+```
+
+```{r find paths exceeding 260 characters, include = FALSE}
+formatted_sfp_data$char_count <- nchar(formatted_sfp_data$path)-29
 ```
 
 ```{r determine file types per category, include = FALSE}
@@ -147,15 +153,6 @@ share_category_size <- share_category_size %>%
 share_category_size <- kbl(share_category_size, booktabs = T) %>% kable_styling(latex_options = c("striped", "hold_position"))
 ```
 
-```{r calculate folder category sizes, include = FALSE}
-folder_category_size <- formatted_sfp_data %>%
-  group_by(category, path) %>% 
-  summarize("Size(GB)" = sum(sizegb), "number of files" = n(), "monthly cost" = sum(monthly_cost), "object storage cost" = sum(object_storage_cost)) %>% 
-  select(path, category, "number of files", "Size(GB)", "monthly cost", "object storage cost")
-
-folder_category_size <- folder_category_size[order(-folder_category_size$"monthly cost"),]
-```
-
 ```{r calculate folder sizes, include = FALSE}
 folder_size <- formatted_sfp_data %>%
   group_by(path) %>% 
@@ -168,14 +165,20 @@ folder_size <- folder_size[order(-folder_size$"monthly cost"),]
 table_pathsize_tallyfiles <- inner_join(folder_size,folder_filetally, by = "path") %>% 
   select(path, "number of files", "folder size gb", "monthly cost", "object storage cost")
 
-# Count the number of '/'s in each element of string
-table_pathsize_tallyfiles$folderdepth <- str_count(table_pathsize_tallyfiles$path, "/")
+# Count backslashes in each UNC path
+table_pathsize_tallyfiles$folderdepth <- stringi::stri_count_fixed(
+  table_pathsize_tallyfiles$path,
+  "\\"
+)
 
-# count the number of '/'s in the path parameter, subtract x from beginning of path (re: escaped backslashes)
-path_depth <- stri_count_fixed("{params$share}", "/")
+# Count backslashes in the share root
+path_depth <- stringi::stri_count_fixed(
+  params$share,
+  "\\"
+)
 
 # subtract path parameter count from each path name's count for a folder depth that starts at the desired search folder
-table_pathsize_tallyfiles$folderdepth <- (table_pathsize_tallyfiles$folderdepth - path_depth) - 5
+table_pathsize_tallyfiles$folderdepth <- (table_pathsize_tallyfiles$folderdepth - path_depth) - 4
 
 table_pathsize_tallyfiles <- table_pathsize_tallyfiles[order(-table_pathsize_tallyfiles$"monthly cost"),] %>% 
   select(path, folderdepth, "number of files", "folder size gb", "monthly cost", "object storage cost")
@@ -252,27 +255,36 @@ dist_dup <- nrow(dup_new) # count of each original file that has a duplicate
 dist_dup <- format(dist_dup, big.mark = ",", scientific = FALSE)
 ```
 
-```{r find files older than 2.5 yrs, include = FALSE}
-# convert the data collected text to date, subtract 5 years
-date <- as.Date({params$collected}, "%Y-%m-%d")
-dt_less30mo <- ymd(date) - months(30)
+```{r find older files, include = FALSE}
+# convert the data collected text to date, subtract time for "last accessed" preference
+dt_threshold <- file_age_threshold(
+  collected_date = params$collected,
+  ministry       = params$ministry
+)
 
 # files last accessed more than 2.5 years ago
-files_accessed_30mo <- formatted_sfp_data %>% 
-  filter(lastaccessdate < dt_less30mo) %>% 
-  select(filename, path, category, sizegb, monthly_cost, lastaccessdate) 
+files_accessed_old <- formatted_sfp_data %>%
+  filter(lastaccessdate < dt_threshold) %>% 
+  select(filename, path, category, sizegb, monthly_cost, lastaccessdate)
 
-files_accessed_30mo <- files_accessed_30mo[(order(as.Date(files_accessed_30mo$lastaccessdate))),]
+files_accessed_old <- files_accessed_old[(order(as.Date(files_accessed_old$lastaccessdate))),] %>% 
+  select(filename, path, category, sizegb, monthly_cost, lastaccessdate)
 
-la_30mo_gb <- round(sum(files_accessed_30mo$sizegb),3)
-la_30mos_gb <- format(la_30mo_gb, big.mark = ",", scientific = FALSE)
-la_30mo_cost <- dollar(la_30mo_gb * 2.7)
+la_old_gb_num <- round(sum(files_accessed_old$sizegb), 3)
+
+la_old_gb <- format(
+  la_old_gb_num,
+  big.mark = ",",
+  scientific = FALSE
+)
+
+la_old_cost <- dollar(la_old_gb_num * 2.7)
 ```
 
 ```{r count the aged-out files, include = FALSE}
-la_count <- nrow(files_accessed_30mo)
+la_count <- nrow(files_accessed_old)
 
-la_30mo_count <- format(la_count, big.mark = ",", scientific = FALSE)
+la_old_count <- format(la_count, big.mark = ",", scientific = FALSE)
 
 la_percent <- (la_count / count_files) * 100
 
@@ -328,7 +340,7 @@ Duplicate files over 1MB make up **`r {dup_percent}`%** of the `r {params$share}
 Approximately \fontspec[Color=Red]{Verdana Bold}`r {dup_cost}` per month \fontspec[Color=Black]{Verdana}could be saved by cleaning up duplicates in `r {params$share}`.
 
 \section{Older Files}
-**`r {la_percent}`%** of files over 1MB were last accessed at least 2.5 years ago \textit{(`r {la_30mo_count}` files)}. This represents \textbf{`r {la_30mos_gb}` GB} of data at a monthly cost of \fontspec[Color=Red]{Verdana Bold}`r {la_30mo_cost}`\fontspec[Color=Black]{Verdana}.
+**`r la_percent`%** of files over 1MB were last accessed **`r file_age_label(params$ministry)`** ago or longer \textit{(`r {la_old_count}` files)}. This represents \textbf{`r {la_old_gb_num}` GB} of data at a monthly cost of \fontspec[Color=Red]{Verdana Bold}`r {la_old_cost}`\fontspec[Color=Black]{Verdana}.
 \clearpage
 
 \begin{center}
@@ -352,13 +364,12 @@ We are using primary and secondary data from the same month for analysis.
 #### Records management and data migration to address rising storage costs
 
 - [Fiscal Year 2025-2026 Chart of NRM SFP Consumption](http://nrmccp-metabase.apps.silver.devops.gov.bc.ca/public/dashboard/5e12786a-2692-41de-b083-5dacc8492417) 
-- [Fiscal Year 2024-2025 Chart of NRM SFP Consumption](http://nrmccp-metabase.apps.silver.devops.gov.bc.ca/public/dashboard/4e59fe00-e957-4336-9106-e5aa9a645f78) 
 
 - \raggedright To learn more about reducing SFP consumption by migrating data to Object Storage, visit the Optimization team's [Confluence page](https://apps.nrs.gov.bc.ca/int/confluence/display/OPTIMIZE/NRM+Object+Storage+Service). You can also place a request through the [Jira Service Desk](https://apps.nrs.gov.bc.ca/int/jira/servicedesk/customer/portal/1/create/701) - please read the [Service Level Agreement](https://apps.nrs.gov.bc.ca/int/confluence/display/OPTIMIZE/Object+Storage+Forms?preview=/65671335/133730673/SLA_Revision_0.6.pdf) **before** submitting a request. 
 
 - [Contact the Optimization Team](mailto:NRIDS.Optimize@gov.bc.ca)
 
-- Do you have questions about appropriate Records Management for your data? Visit the [Government Information Management Branch](https://www2.gov.bc.ca/gov/content/governments/services-for-government/information-management-technology/records-management) or [Contact the GIM Team](mailto:gim@gov.bc.ca)
+`r records_management_text(params$ministry)`
 
 ```{r dynamic output name, include = FALSE}
 # create output file name based on parameters
@@ -372,47 +383,40 @@ excel <- createWorkbook(output_excel)
 # create sheet names
 firstSheet = "Folder Details"
 secondSheet = "Duplicate Files"
-thirdSheet = "Last Accessed 2.5+ Years"
-fourthSheet = "Category Details by Folder"
-fifthSheet = "Category Extensions"
+thirdSheet = "Older Files"
+fourthSheet = "Category Extensions"
 
 # add worksheets to workbook
 sheet.names(firstSheet)
 sheet.names(secondSheet)
 sheet.names(thirdSheet)
 sheet.names(fourthSheet)
-sheet.names(fifthSheet)
 
 # assign data tables to worksheets, apply filter across all sheets
 dt.worksheets(1, table_pathsize_tallyfiles)
 dt.worksheets(2, duplicate_files_formatted) 
-dt.worksheets(3, files_accessed_30mo) 
-dt.worksheets(4, folder_category_size)
-dt.worksheets(5 ,sfp_categories_filetypes)
+dt.worksheets(3, files_accessed_old) 
+dt.worksheets(4 ,sfp_categories_filetypes)
 
 # freeze top row of all sheets
 freeze.panes(1)
 freeze.panes(2)
 freeze.panes(3)
 freeze.panes(4)
-freeze.panes(5)
 
 # set custom column widths for all sheets
 setColWidths(excel, sheet = 1, cols = c(1, 2:6), widths = c(75, 20, 20, 20, 20, 20))
 setColWidths(excel, sheet = 2, cols = c(1, 2, 3:8), widths = c(50, 75, 20, 20, 20, 20, 20, 20))
 setColWidths(excel, sheet = 3, cols = c(1, 2, 3:8), widths = c(50, 75, 20, 20, 20, 20, 20, 20))
-setColWidths(excel, sheet = 4, cols = c(1, 2:6), widths = c(75, 20, 20, 20, 20, 20))
-setColWidths(excel, sheet = 5, cols = c(1:2), widths = c(20, 20))
+setColWidths(excel, sheet = 4, cols = c(1:2), widths = c(20, 20))
 
 # set currency format on column
 sty1 = createStyle(numFmt="$0.00")
 addStyle(excel, sheet = 1, sty1, rows=2:(nrow(table_pathsize_tallyfiles)+1), cols=5)
 addStyle(excel, sheet = 1, sty1, rows=2:(nrow(table_pathsize_tallyfiles)+1), cols=6)
 addStyle(excel, sheet = 2, sty1, rows=2:(nrow(duplicate_files_formatted)+1), cols=5)
-addStyle(excel, sheet = 3, sty1, rows=2:(nrow(files_accessed_30mo)+1), cols=5)
-addStyle(excel, sheet = 4, sty1, rows=2:(nrow(folder_category_size)+1), cols=5)
-addStyle(excel, sheet = 4, sty1, rows=2:(nrow(folder_category_size)+1), cols=6)
-addStyle(excel, sheet = 5, sty1, rows=2:(nrow(sfp_categories_filetypes)+1), cols=5)
+addStyle(excel, sheet = 3, sty1, rows=2:(nrow(files_accessed_old)+1), cols=5)
+addStyle(excel, sheet = 4, sty1, rows=2:(nrow(sfp_categories_filetypes)+1), cols=5)
 
 # save the workbook to file
 saveWorkbook(excel, file = here("output", output_excel), overwrite = TRUE)

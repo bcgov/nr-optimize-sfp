@@ -36,15 +36,16 @@ library(ggtext)
 library(hrbrthemes)
 
 #font_import()
-#loadfonts(device = "win")
-#theme_set(theme_bw())
+loadfonts(device = "win")
+loadfonts(); windowsFonts()
+theme_set(theme_bw())
 here::here()
 ```
 
 ```{r, date variables for plots, include = FALSE}
-collected <- as.Date("2024-07-04")
-quarter <- "Q2"
-fiscal <- "FY24-25"
+collected <- as.Date("2026-03-31")
+quarter <- "Q1"
+fiscal <- "FY26-27"
 cap <- glue('Source: OCIO Summary Report from {format(collected, "%B %d, %Y")}')
 pdfname <- sprintf('Ministry_HDrive_Plots_%s_%s', quarter, fiscal)
 ```
@@ -75,7 +76,7 @@ h_raw_data <- data.frame(hdf) %>%
 ```
 
 ```{r create list of dataframes, echo = FALSE}
-ministries = c("AF", "BCWS", "EMLI", "ENV", "FOR", "IRR", "WLRS")
+ministries = c("AF", "BCWS", "ECS", "ENV", "FOR", "IRR", "MCM", "WLRS")
 
 categories = c("AppData", "Archive", "Audio", "Backups", "CAD", "Database", "Disk Images", "Documents", "Email", "Empty Extension", "Encase", "Executables", "Images", "Map", "P2P", "Source Code", "System", "Temporary", "Video", "Web Page")
 
@@ -112,8 +113,8 @@ ministry_h_chart <- function(df) {
   ggplot(df) + 
     geom_col(aes(Size_GB, File_Category), fill = "#234075", width = 0.7) + 
     scale_x_continuous(
-      limits = c(0, 10500),
-      breaks = seq(0, 10000, by = 1000),
+      limits = c(0, 2500),
+      breaks = seq(0, 2000, by = 500),
       expand = c(0, 0), # The horizontal axis does not extend to either side
       position = "top"  # Labels are located on the top
     ) +
@@ -170,23 +171,25 @@ ministry_h_chart <- function(df) {
 ```{R run new function, echo = FALSE}
 chart_AF_hdrive <- ministry_h_chart(AF)
 chart_BCWS_hdrive <- ministry_h_chart(BCWS)
-chart_EMLI_hdrive <- ministry_h_chart(EMLI)
+chart_ECS_hdrive <- ministry_h_chart(ECS)
 chart_ENV_hdrive <- ministry_h_chart(ENV)
 chart_FOR_hdrive <- ministry_h_chart(FOR)
 chart_IRR_hdrive <- ministry_h_chart(IRR)
+chart_MCM_hdrive <- ministry_h_chart(MCM)
 chart_WLRS_hdrive <- ministry_h_chart(WLRS)
 
 plotlist = list()
 plotlist[[1]] <- chart_AF_hdrive
 plotlist[[2]] <- chart_BCWS_hdrive 
-plotlist[[3]] <- chart_EMLI_hdrive 
+plotlist[[3]] <- chart_ECS_hdrive 
 plotlist[[4]] <- chart_ENV_hdrive 
 plotlist[[5]] <- chart_FOR_hdrive 
-plotlist[[6]] <- chart_IRR_hdrive 
-plotlist[[7]] <- chart_WLRS_hdrive
+plotlist[[6]] <- chart_IRR_hdrive
+plotlist[[7]] <- chart_MCM_hdrive 
+plotlist[[8]] <- chart_WLRS_hdrive
 
 pdf(here('figure',glue(pdfname,".pdf")))
-for (i in 1:7) {
+for (i in 1:8) {
   print(plotlist[[i]])
 }
 dev.off()
