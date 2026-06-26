@@ -1,0 +1,327 @@
+---
+author: "Copyright: Optimization Team 2026"
+date: "Report compiled on `r format(Sys.time(), '%B %d, %Y')`"
+output: html_document
+title: "SFP Comparison Report on `r params$share` (`r params$ministry`)"
+subtitle: "`r params$subline`"
+
+params:
+  old_data:
+    label: "Input file 1:"
+    value: "*.csv"
+    input: text
+  new_data:
+    label: "Input file 2:"
+    value: "*.csv"
+    input: text
+  ministry:
+    label: "Ministry Name:"
+    value: AF
+    input: select
+    choices: [AF, BCWS, EMLI, ECS, ENV, FOR, IRR, MCM, WLRS]
+  share:
+    label: "Share Name to Search:"
+    value: "S01234"
+    input: text
+  subline:
+    label: "Month YYYY and Month YYYY"
+    value: "Sept 2025 and Mar 2026"
+    input: text
+  output_dir:
+    value: "output"
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(
+  echo = TRUE,
+  warning = FALSE,
+  message = FALSE,
+  fig.width = 7,
+  fig.height = 5,
+  fig.align = "center"
+)
+
+library(data.table)
+library(DT)
+library(dplyr)
+library(forcats)
+library(glue)
+library(here)
+library(knitr)
+library(lubridate)
+library(magrittr)
+library(openxlsx)
+library(purrr)
+library(scales)
+library(stringr)
+library(stringi)
+library(tidyverse)
+library(zoo)
+library(kableExtra)
+
+# set working directory
+here::here()
+```
+
+```{r global, call-external-functions, include = FALSE}
+# load custom functions from external scripts
+source(here("scripts", glue('custom_sfp_functions.R')), local = knitr::knit_global())
+```
+
+```{r load data, include = FALSE}
+# load csv and fill empty cells 
+sfp_old <- read_csv(params$old_data, na = c("", " ", "NULL"))
+sfp_new <- read_csv(params$new_data, na = c(""," ","NULL"))
+
+# keep only 7 relevant columns
+sfp_old <- sfp_old[,c(1:2,5:9)]
+sfp_new <- sfp_new[,c(1:2,5:9)]
+
+# rename columns
+
+colnames(sfp_old) <- c("filename", "path", "sizemb","lastaccessdate","modificationdate","creationdate","share")
+colnames(sfp_new) <- colnames(sfp_old)
+
+head(sfp_old)
+head(sfp_new)
+```
+
+```{r format and filter, include = FALSE}
+format_sfp_data <- function(x,y) {
+  x %>%
+  mutate(
+    share = gsub("\\", "", share, fixed = TRUE)
+  ) %>%
+  filter(str_detect(share, {y})) %>%
+  mutate(
+    folder_path = stringr::word(path, 1, 8, sep = "\\\\"),
+    subfolders = stringi::stri_count_fixed(path,"\\")-7,
+    sizegb = round(sizemb / 1000, 3),
+    cost = round(sizemb / 1000, 3) * 2.7,
+    lastaccessdate   = convert.date(lastaccessdate),
+    modificationdate = convert.date(modificationdate),
+    creationdate     = convert.date(creationdate),
+    # <<< one-line remap of path values >>>
+    path = remap_substrings(path),
+    folder_path = remap_substrings(folder_path)) %>% 
+  select(filename, folder_path, path, subfolders, sizemb, sizegb, cost, lastaccessdate, modificationdate, creationdate)
+}
+
+sfp_old_data <- format_sfp_data(sfp_old, params$share)
+sfp_new_data <- format_sfp_data(sfp_new, params$share)
+
+head(sfp_old_data)
+head(sfp_new_data)
+```
+
+```{r find duplicate files, include = FALSE}
+# find files that are duplicated in both name and size
+find_duplicates <- function(x) {
+  duplicate_files <- x %>% 
+  group_by(filename, sizegb, folder_path) %>% 
+  filter( n() > 1 )
+}
+
+sfp_old_dupes_find <- find_duplicates(sfp_old_data)
+sfp_new_dupes_find <- find_duplicates(sfp_new_data)
+
+files_duplicated <- function(x) {
+  x[!duplicated(x[ , c("filename", "sizegb", "folder_path")]), ] %>% 
+  mutate(duplicate_count = n()) %>%
+  group_by(folder_path) %>% 
+  summarize(duplicates = sum(duplicate_count)) %>% 
+  select(folder_path, duplicates)
+}
+
+dupe_files_old <- files_duplicated(sfp_old_dupes_find)
+dupe_files_new <- files_duplicated(sfp_new_dupes_find)
+
+join_dupes <- full_join(dupe_files_old, dupe_files_new, by = "folder_path") %>%
+  rename(
+    "folder path" = folder_path,
+    "old dupe count" = duplicates.x,
+    "new dupe count" = duplicates.y
+  ) %>%
+  mutate(
+    across(c("old dupe count", "new dupe count"), ~replace_na(., 0))
+  )
+
+join_dupes$"dupe count change" <- as.numeric(join_dupes$"old dupe count") - as.numeric(join_dupes$"new dupe count")
+
+head(join_dupes)
+```
+
+
+```{r calculate folder totals, include = FALSE}
+calc_folder_totals <- function(x) {
+  x %>% 
+    group_by(folder_path) %>% 
+    summarize("folder size gb" = sum(sizegb), "number of files" = n(), "number of subfolders" = max(subfolders), "folder cost" = sum(cost)) %>% 
+    select("folder path" = folder_path, "folder size gb", "number of files", "number of subfolders", "folder cost")
+}
+
+old_totals <- calc_folder_totals(sfp_old_data)
+new_totals<- calc_folder_totals(sfp_new_data)
+
+head(old_totals)
+head(new_totals)
+```
+
+```{r join old and new tables, include = FALSE}
+
+join_totals <- full_join(old_totals, new_totals, by = "folder path") %>%
+  select(
+    "folder path",
+    "old folder size gb" = "folder size gb.x",
+    "new folder size gb" = "folder size gb.y",
+    "old file count" = "number of files.x",
+    "new file count" = "number of files.y",
+    "old subfolder count" = "number of subfolders.x",
+    "new subfolder count" = "number of subfolders.y",
+    "old folder cost" = "folder cost.x",
+    "new folder cost" = "folder cost.y"
+  ) %>%
+
+  # Replace NA in numeric fields with 0
+  mutate(
+    across(
+      c(
+        "old folder size gb", "new folder size gb",
+        "old file count", "new file count",
+        "old subfolder count", "new subfolder count",
+        "old folder cost", "new folder cost"
+      ),
+      ~replace_na(., 0)
+    )
+  )
+
+
+join_totals <- join_totals %>%
+  mutate(
+    "folder size change gb" = `new folder size gb` - `old folder size gb`,
+    "file count change" = `new file count` - `old file count`,
+    "subfolder count change" = `new subfolder count` - `old subfolder count`,
+    "folder cost change" = `new folder cost` - `old folder cost`
+  )
+
+
+join_totals <- full_join(join_totals, join_dupes, by = "folder path") %>%
+  mutate(
+    across(
+      c("old dupe count", "new dupe count"),
+      ~replace_na(., 0)
+    ),
+    "dupe count change" = `new dupe count` - `old dupe count`
+  )
+
+epsilon <- 1e-6
+
+join_totals <- join_totals %>%
+  mutate(
+    status = case_when(
+      # New folder (only appears in new dataset)
+      `old folder size gb` == 0 & `new folder size gb` > 0 ~ "New",
+
+      # Removed folder (only appears in old dataset)
+      `old folder size gb` > 0 & `new folder size gb` == 0 ~ "Removed",
+
+      # No change across key metrics
+      abs(`folder size change gb`) < epsilon &
+      abs(`file count change`) == 0 &
+      abs(`subfolder count change`) == 0 &
+      abs(`folder cost change`) < epsilon &
+      abs(`dupe count change`) == 0 ~ "Unchanged",
+
+      TRUE ~ "Modified"
+    )
+  )
+
+join_totals <- join_totals %>%
+  select(status,	"folder path", "old folder size gb", "new folder size gb", "folder size change gb", "old folder cost", "new folder cost", "folder cost change", "old subfolder count", "new subfolder count", "subfolder count change", "old file count", "new file count", "file count change", "old dupe count", "new dupe count", "dupe count change")
+
+head(join_totals)
+```
+
+```{r dynamic output name, include = FALSE}
+# create output file name based on parameters
+output_excel <- paste0(
+  params$ministry, "_",
+  "SFP_Report_Comparison_",
+  params$share, "_",
+  params$subline,
+  ".xlsx"
+)
+```
+
+```{r write output to Excel file, include = FALSE}
+# create workbook
+excel <- createWorkbook()
+
+# Create worksheet
+addWorksheet(excel, "Folder Comparison Details")
+
+# Write data to worksheet
+writeData(excel, "Folder Comparison Details", join_totals)
+
+# (Optional) Add filter
+addFilter(excel, "Folder Comparison Details", row = 1, cols = 1:2)
+
+# freeze top row of all sheets
+freezePane(excel, sheet = 1, firstRow = TRUE)
+
+# set conditional colour format on columns 4, 7, and 10 for values < 0
+sty1 <- createStyle(fontColour = "#000080")
+
+conditionalFormatting(
+  excel,
+  sheet = 1,
+  cols = c(5, 8, 11, 14, 17),
+  rows = 2:(nrow(join_totals) + 1),
+  rule = "<0",
+  style = sty1
+)
+
+# Example: highlight "New" rows (green)
+conditionalFormatting(
+  excel,
+  sheet = 1,
+  cols = 1:ncol(join_totals),
+  rows = 2:(nrow(join_totals) + 1),
+  rule = '=$A2="New"',
+  style = createStyle(bgFill = "#C6EFCE")
+)
+
+# Highlight "Removed" (red)
+conditionalFormatting(
+  excel,
+  sheet = 1,
+  cols = 1:ncol(join_totals),
+  rows = 2:(nrow(join_totals) + 1),
+  rule = '=$A2="Removed"',
+  style = createStyle(bgFill = "#FFC7CE")
+)
+
+# set currency format on column
+sty2 = createStyle(numFmt="$0.00")
+addStyle(excel, sheet = 1, sty2, rows=2:(nrow(join_totals)+1), cols=6)
+addStyle(excel, sheet = 1, sty2, rows=2:(nrow(join_totals)+1), cols=7)
+addStyle(excel, sheet = 1, sty2, rows=2:(nrow(join_totals)+1), cols=8)
+
+# set custom column widths for all sheets
+setColWidths(excel, sheet = 1, cols = c(1, 2, 3:17), widths = c(25, 75, 25, 25, 25, 25, 25, 25, 25, 25, 25, 25, 25, 25, 25, 25, 25))
+
+# save the workbook to file
+if (!dir.exists(params$output_dir)) {
+  dir.create(params$output_dir, recursive = TRUE)
+}
+
+if (!exists("join_totals") || nrow(join_totals) == 0) {
+  stop("join_totals is empty — nothing to write to Excel")
+}
+
+saveWorkbook(
+  excel,
+  file = file.path(params$output_dir, output_excel),
+  overwrite = TRUE
+)
+```
