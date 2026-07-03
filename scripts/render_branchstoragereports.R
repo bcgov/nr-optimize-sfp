@@ -9,4 +9,4 @@ source("scripts/load_homedrive_files.R")
 source("scripts/custom_script_functions.R")
 
 # function to render parameters and save html output to file
-rmarkdown::render(here("scripts/experimental", "branchstoragereports.Rmd"), params = "ask")
+rmarkdown::render(here("scripts", "branchstoragereports.Rmd"), params = "ask")
