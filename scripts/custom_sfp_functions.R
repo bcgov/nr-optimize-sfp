@@ -50,6 +50,11 @@ remap_substrings <- function(paths) {
     stop("remap_substrings(): 'paths' must be a character vector")
   }
 
+  if (all(is.na(paths))) {
+    return(paths)
+  }
+
+
   # ---------------------------------------------------------------------------
   # 1. Unix /ifs paths -> UNC (fixed replacement)
   # ---------------------------------------------------------------------------
@@ -84,11 +89,14 @@ remap_substrings <- function(paths) {
     "\\\\FIRELINE\\SF_M$\\C65\\"
   )
 
+
   idx_fireline <- stringi::stri_detect_fixed(
     paths,
     "\\\\FIRELINE\\",
     case_insensitive = TRUE
   )
+
+  idx_fireline <- tidyr::replace_na(idx_fireline, FALSE)
 
   if (any(idx_fireline)) {
     paths[idx_fireline] <- stringi::stri_replace_all_fixed(
