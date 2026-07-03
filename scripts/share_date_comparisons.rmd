@@ -95,7 +95,6 @@ format_sfp_data <- function(x,y) {
   filter(str_detect(share, {y})) %>%
   mutate(
     folder_path = stringr::word(path, 1, 8, sep = "\\\\"),
-    subfolders = stringi::stri_count_fixed(path,"\\")-7,
     sizegb = round(sizemb / 1000, 3),
     cost = round(sizemb / 1000, 3) * 2.7,
     lastaccessdate   = convert.date(lastaccessdate),
@@ -104,7 +103,7 @@ format_sfp_data <- function(x,y) {
     # <<< one-line remap of path values >>>
     path = remap_substrings(path),
     folder_path = remap_substrings(folder_path)) %>% 
-  select(filename, folder_path, path, subfolders, sizemb, sizegb, cost, lastaccessdate, modificationdate, creationdate)
+  select(filename, folder_path, path, sizemb, sizegb, cost, lastaccessdate, modificationdate, creationdate)
 }
 
 sfp_old_data <- format_sfp_data(sfp_old, params$share)
@@ -156,8 +155,8 @@ head(join_dupes)
 calc_folder_totals <- function(x) {
   x %>% 
     group_by(folder_path) %>% 
-    summarize("folder size gb" = sum(sizegb), "number of files" = n(), "number of subfolders" = max(subfolders), "folder cost" = sum(cost)) %>% 
-    select("folder path" = folder_path, "folder size gb", "number of files", "number of subfolders", "folder cost")
+    summarize("folder size gb" = sum(sizegb), "number of files" = n(), "folder cost" = sum(cost)) %>% 
+    select("folder path" = folder_path, "folder size gb", "number of files", "folder cost")
 }
 
 old_totals <- calc_folder_totals(sfp_old_data)
@@ -176,8 +175,6 @@ join_totals <- full_join(old_totals, new_totals, by = "folder path") %>%
     "new folder size gb" = "folder size gb.y",
     "old file count" = "number of files.x",
     "new file count" = "number of files.y",
-    "old subfolder count" = "number of subfolders.x",
-    "new subfolder count" = "number of subfolders.y",
     "old folder cost" = "folder cost.x",
     "new folder cost" = "folder cost.y"
   ) %>%
@@ -188,7 +185,6 @@ join_totals <- full_join(old_totals, new_totals, by = "folder path") %>%
       c(
         "old folder size gb", "new folder size gb",
         "old file count", "new file count",
-        "old subfolder count", "new subfolder count",
         "old folder cost", "new folder cost"
       ),
       ~replace_na(., 0)
@@ -200,7 +196,6 @@ join_totals <- join_totals %>%
   mutate(
     "folder size change gb" = `new folder size gb` - `old folder size gb`,
     "file count change" = `new file count` - `old file count`,
-    "subfolder count change" = `new subfolder count` - `old subfolder count`,
     "folder cost change" = `new folder cost` - `old folder cost`
   )
 
@@ -228,7 +223,6 @@ join_totals <- join_totals %>%
       # No change across key metrics
       abs(`folder size change gb`) < epsilon &
       abs(`file count change`) == 0 &
-      abs(`subfolder count change`) == 0 &
       abs(`folder cost change`) < epsilon &
       abs(`dupe count change`) == 0 ~ "Unchanged",
 
@@ -237,7 +231,7 @@ join_totals <- join_totals %>%
   )
 
 join_totals <- join_totals %>%
-  select(status,	"folder path", "old folder size gb", "new folder size gb", "folder size change gb", "old folder cost", "new folder cost", "folder cost change", "old subfolder count", "new subfolder count", "subfolder count change", "old file count", "new file count", "file count change", "old dupe count", "new dupe count", "dupe count change")
+  select(status,	"folder path", "old folder size gb", "new folder size gb", "folder size change gb", "old folder cost", "new folder cost", "folder cost change", "old file count", "new file count", "file count change", "old dupe count", "new dupe count", "dupe count change")
 
 head(join_totals)
 ```
@@ -308,7 +302,7 @@ addStyle(excel, sheet = 1, sty2, rows=2:(nrow(join_totals)+1), cols=7)
 addStyle(excel, sheet = 1, sty2, rows=2:(nrow(join_totals)+1), cols=8)
 
 # set custom column widths for all sheets
-setColWidths(excel, sheet = 1, cols = c(1, 2, 3:17), widths = c(25, 75, 25, 25, 25, 25, 25, 25, 25, 25, 25, 25, 25, 25, 25, 25, 25))
+setColWidths(excel, sheet = 1, cols = c(1, 2, 3:17), widths = c(25, 75, 25, 25, 25, 25, 25, 25, 25, 25, 25, 25, 25, 25))
 
 # save the workbook to file
 if (!dir.exists(params$output_dir)) {
