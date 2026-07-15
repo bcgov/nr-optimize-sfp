@@ -18,8 +18,8 @@ The reports provide insight into SFP consumption habits and outline areas of con
 
 >
 **Update: April 2026**
-The Optimization Team is now a part of Connected Services BC (CITZ). 
-Connected Services BC has moved to a new funding model. Incremental storage costs (SFP LANs and Home Drives) are now VOTED, which means they are not billed to Ministry Overhead.
+The Optimization Team is now a part of Connected Services BC (CITZ).  
+Connected Services BC has moved to a new funding model. Incremental storage costs (SFP LANs and Home Drives) are now VOTED, which means they are not billed to Ministry Overhead.  
 Going forward, digital storage consumption should be considered from a "responsible use" lens to avoid unnecessary cost to BCGOV as a whole.
 
 ## Documentation
