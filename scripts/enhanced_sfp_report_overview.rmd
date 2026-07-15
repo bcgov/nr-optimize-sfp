@@ -372,7 +372,7 @@ We are using primary and secondary data from the same month for analysis.
 \section{SFP Reduction Goals}
 #### Records management and data migration to address rising storage costs
 
-- [Fiscal Year 2025-2026 Chart of NRM SFP Consumption](http://nrmccp-metabase.apps.silver.devops.gov.bc.ca/public/dashboard/5e12786a-2692-41de-b083-5dacc8492417) 
+- [Fiscal Year 2026-2027 Chart of NRM SFP Consumption](http://nrmccp-metabase.apps.silver.devops.gov.bc.ca/public/dashboard/0bd8479c-fb25-4001-abdd-362eee0ae251) 
 
 - \raggedright To learn more about reducing SFP consumption by migrating data to Object Storage, visit the Optimization team's [Confluence page](https://apps.nrs.gov.bc.ca/int/confluence/display/OPTIMIZE/NRM+Object+Storage+Service). You can also place a request through the [Jira Service Desk](https://apps.nrs.gov.bc.ca/int/jira/servicedesk/customer/portal/1/create/701) - please read the [Service Level Agreement](https://apps.nrs.gov.bc.ca/int/confluence/display/OPTIMIZE/Object+Storage+Forms?preview=/65671335/133730673/SLA_Revision_0.6.pdf) **before** submitting a request. 
 
