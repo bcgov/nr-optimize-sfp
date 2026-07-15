@@ -8,81 +8,68 @@
 > You must have your R environment configured already, as outlined in **README_R_SETUP** <br>
 > The following files need to be in your **scripts** folder:
 >
+> -   GFX_OptimizationLogo-Icon_v2.png
+> -   header.tex
 > -   load_groupshare_files.R
 > -   custom_sfp_functions.R
 > -   enhanced_sfp_report_overview.rmd
-> -   enhanced_sfp_report_overview_bcws.rmd
 > -   enhanced_sfp_report_share.rmd
-> -   enhanced_sfp_report_share_bcws.rmd
 > -   enhanced_sfp_report_folder.rmd
-> -   enhanced_sfp_report_folder_bcws.rmd
 > -   render_enhanced_sfp_report_overview.R
-> -   render_sfp_enhanced_report_folder.R
 > -   render_sfp_enhanced_report_share.R
-> -   GFX_OptimizationLogo-Icon_v2.png
+> -   render_sfp_enhanced_report_folder.R
 > 
 > The following files need to be in your **source** folder:
-> - **all 6** of the NRM Ministry .xlsx files for monthly group share consumption *that match the month of the report you're compiling*
+> - **all** of the individual NRM Ministry .xlsx files for monthly group share consumption *that match the month of the report you're compiling*
 > - the NRM Ministry .csv files for shared file enhanced reporting
 >   - The enhanced data for ENV & FOR arrives as multiple .csv files and they'll need to be combined into one ENV & FOR file each. You can use this command line [example](https://www.ablebits.com/office-addins-blog/merge-multiple-csv-files-excel/#:~:text=In%20the%20command%20line%2C%20after,%2C%20merged%2Dcsv%2Dfiles.) _copy *.csv YYYY-MM-DD_MIN_SFP_Enhanced_Data.csv_ or one of your own if you have a preferred method.
 ### Reporting on the Ministry-level SFP
 >
-> -   open the file **render_enhanced_sfp_report_overview.R**
-> -   change the file name on line 11 to either *"enhanced_sfp_report_overview.rmd"* or *"enhanced_sfp_report_overview_bcws.rmd"*
+> -   open the file ***render_enhanced_sfp_report_overview.R***
 > -   change the bracketed text in the final line of the script to your desired parameters, like in this example: <br>
-render_report("2022-05-01_EMLI_SFP_Enhanced_Data.csv", "EMLI", "Q1", "FY22-23", "2022-04-30")
-> -   there are 5 mandatory fields to enter <ins>**in order**</ins>:
+render_report("2026-06-30_FOR_SFP_Enhanced_Data.csv", "FOR", "2026-06-30")
+> -   there are 3 mandatory fields to enter <ins>**in order**</ins>:
 >     -   the name of the csv file (you must include .csv in the file name)
 >     -   the acronym of the Minstry
->     -   the fiscal quarter (please format as Q# for consistency)
->     -   the fiscal year (please format as FY##-## for consistency)
 >     -   the date on the raw data file from the OCIO, so clients have an idea of when the storage snapshot was taken <br>
 > -   select all the text (ctrl-a) and then run the script by either pressing ctrl-Enter OR pressing the "Run" button in R Studio at the top right.
 >
 > The end result is 2 files in your **output** folder, named dynamically based on the parameters you input earlier.
 >
-> -   **SFP_Enhanced_Report_ministry_quarter_fiscalyear.xlsx**
-> -   **SFP_Enhanced_Report_ministry_quarter_fiscalyear.html**
+> -   **SFP_Enhanced_Report_ministry_date.xlsx**
+> -   **SFP_Enhanced_Report_ministry_date.pdf**
 ### Reporting on an SFP share
 >
 > -   open the file ***render_enhanced_sfp_report_share.R***
-> -   change the file name on line 11 to either *"enhanced_sfp_report_share.rmd"* or *"enhanced_sfp_report_share_bcws.rmd"*
 > -   change the bracketed text in the final line of the script to your desired parameters, like in this example: <br>
-render_report("2022-05-01_ENV_SFP_Enhanced_Data.csv", "ENV", "S40183", "Q1", "FY22-23", "2022-05-05")
-> -   there are 6 mandatory fields to enter <ins>**in order**</ins>:
+render_report("2026-06-30_FOR_SFP_Enhanced_Data.csv", "FOR", "S63001", "2026-06-30")
+> -   there are 4 mandatory fields to enter <ins>**in order**</ins>:
 >     -   the name of the csv file (you must include .csv in the file name)
 >     -   the acronym of the Minstry
 >     -   the name of the share
->     -   the fiscal quarter (please format as Q# for consistency)
->     -   the fiscal year (please format as FY##-## for consistency)
 >     -   the date on the raw data file from the OCIO, so clients have an idea of when the storage snapshot was taken
 > -   select all the text (ctrl-a) and then run the script by either pressing ctrl-Enter OR pressing the "Run" button in R Studio at the top right.
 >
 > The end result is 2 files in your **output** folder, named dynamically based on the parameters you input earlier.
 >
-> -   **SFP_Enhanced_Report_ministry_sharename_quarter_fiscalyear.xlsx**
-> -   **SFP_Enhanced_Report_ministry_sharename_quarter_fiscalyear.html**
+> -   **SFP_Enhanced_Report_ministry_sharename_date.xlsx**
+> -   **SFP_Enhanced_Report_ministry_sharename_date.pdf**
 ### Reporting on an SFP folder
 >
 > -   open the file ***render_enhanced_sfp_report_folder.R***
-> -   change the file name on line 11 to either *"enhanced_sfp_report_folder.rmd"* or *"enhanced_sfp_report_folder_bcws.rmd"*
 > -   change the bracketed text in the final line of the script to your desired parameters, like in this example: <br>
-render_report("2022-05-01_IRR_SFP_Enhanced_Data.csv", "IRR",  "/ifs/sharedfile/top_level/C92/S92002/ABR_Fiscal_Shared", "ABR_Fiscal_Shared", "Q1", "FY22-23", "2022-05-10")
-> -   there are 7 mandatory fields to enter <ins>**in order**</ins>:
+render_report("2026-06-30_FOR_SFP_Enhanced_Data.csv", "FOR", "/ifs/sharedfile/top_level/C64/S63063/ILMB_CRIM_BMGS", "ILMB_CRIM_BMGS", "2026-06-30")
+> -   there are 5 mandatory fields to enter <ins>**in order**</ins>:
 >     -   the name of the csv file (you must include .csv in the file name)
 >     -   the acronym of the Minstry
->     -   the folder path as shown in the raw OCIO file. If you have a folder name in your path that has parentheses around it, enclose the parentheses in square brackets so that they're "escaped" from the regex expression. Do the same for special characters. \
->         i.e. [ADMINISTRATION (100-499)] needs square brackets around [(100-499)]
->     -   the final folder name **exactly** as it is in the folder path. It is used as a boundary in the main script for when folder names are similar, but you only want to pull information from one of them. i.e. a simple filter on "ROB" might get you "ROB", "ROB FOI", and "ROBERTSON CREEK", but having the boundary applied ensures you only get "ROB"
->     -   the fiscal quarter (please format as Q# for consistency)
->     -   the fiscal year (please format as FY##-## for consistency)
+>     -   the folder path as shown in the raw OCIO file. It will look different in the BCWS file which is OK because the script has been designed to handle it.
 >     -   the date on the raw data file from the OCIO, so clients have an idea of when the storage snapshot was taken (please format as YYYY-MM-DD for consistency)
 > -   select all the text (ctrl-a) and then run the script by either pressing ctrl-Enter OR pressing the "Run" button in R Studio at the top right.
 >
 > The end result is 2 files in your **output** folder, named dynamically based on the parameters you input earlier.
 >
-> -   **SFP_Enhanced_Report_ministry_foldername_quarter_fiscalyear.xlsx**
-> -   **SFP_Enhanced_Report_ministry_foldername_quarter_fiscalyear.html**
+> -   **SFP_Enhanced_Report_ministry_foldername_date.xlsx**
+> -   **SFP_Enhanced_Report_ministry_foldername_date.pdf**
 ### Alternate Method of Running the Reports
 >
 > -   open the *enhanced_sfp_report_<overview, share, or folder>.rmd* file 
@@ -91,11 +78,11 @@ render_report("2022-05-01_IRR_SFP_Enhanced_Data.csv", "IRR",  "/ifs/sharedfile/t
 >     <img src="https://github.com/bcgov/nr-optimize-sfp/blob/main/docs/KWP.jpg" width=40% height=40%>
 > -   press "Knit"
 >
-> The end result is both an excel file in your **output** folder that is named dynamically based on the parameters you input earlier, and a html file in your **scripts** folder <ins>that will need to be manually renamed</ins>. For example:
+> The end result is both an excel file and a PDF file in your **output** folder that are named dynamically based on the parameters you input earlier. For example:
 >
-> -   SFP_Enhanced_Report_WLRS_Q4_FY22-23.xlsx **and** enhanced_sfp_report_overview.html
-> -   SFP_Enhanced_Report_BCWS_S65005_Q4_FY22-23.xlsx **and** enhanced_sfp_report_share.html
-> -   SFP_Enhanced_Report_IRR_ATN_Public_Shr_Q4_FY22-23.xlsx **and** enhanced_sfp_report_folder.html
+> -   SFP_Enhanced_Report_FOR_2026-06-30.xlsx **and** SFP_Enhanced_Report_FOR_2026-06-30.pdf
+> -   SFP_Enhanced_Report_FOR_S63001_2026-06-30.xlsx **and** SFP_Enhanced_Report_FOR_S63001_2026-06-30.pdf
+> -   SFP_Enhanced_Report_FOR_ILMB_CRIM_BMGS_2026-06-30.xlsx **and** SFP_Enhanced_Report_FOR_ILMB_CRIM_BMGS_2026-06-30.pdf
 ### Reference Material
 >
 >[An Introduction to R](https://intro2r.com/) <br>

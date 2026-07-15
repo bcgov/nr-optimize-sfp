@@ -15,6 +15,9 @@ You need to install these programs from the Software Center. First install R, th
 To use the *rmarkdown* package you must have a recent version of **Pandoc** installed. RStudio automatically includes Pandoc in their IDE but if you require a newer version or are using VS Code, you will need to [install Pandoc](https://pandoc.org/installing.html).
 
 >
+To create PDF output you will need to install the *TinyTex* package from RStudio. You can find the reference manual on [CRAN](https://cran.rstudio.com/web/packages/tinytex/refman/tinytex.html).
+
+>
 Alternatively, you can install the latest versions from Chocolately running CMD as admin (this is what I prefer).
 >
 * *choco install r -y*  
