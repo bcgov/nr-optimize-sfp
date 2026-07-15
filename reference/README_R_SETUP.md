@@ -1,4 +1,4 @@
-<img src="https://github.com/bcgov/nr-optimize-sfp/blob/main/docs/GFX_OptimizationLogo-Icon_v2.png" width=35% height=35%>
+<img src="https://github.com/bcgov/nr-optimize-sfp/blob/main/reference/GFX_OptimizationLogo-Icon_v2.png" width=35% height=35%>
 
 # README for Using R and R Studio
 ## Heather Hay c/o NRIDS Optimization Team 2023

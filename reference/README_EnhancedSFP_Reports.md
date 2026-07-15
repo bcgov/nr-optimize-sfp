@@ -75,7 +75,7 @@ render_report("2026-06-30_FOR_SFP_Enhanced_Data.csv", "FOR", "/ifs/sharedfile/to
 > -   open the *enhanced_sfp_report_<overview, share, or folder>.rmd* file 
 > -   press the arrow beside "Knit" and select "Knit with Parameters"
 > -   populate the fields in the resultant prompt window with your parameters, following the examples provided\
->     <img src="https://github.com/bcgov/nr-optimize-sfp/blob/main/docs/KWP.jpg" width=40% height=40%>
+>     <img src="https://github.com/bcgov/nr-optimize-sfp/blob/main/reference/KWP.jpg" width=40% height=40%>
 > -   press "Knit"
 >
 > The end result is both an excel file and a PDF file in your **output** folder that are named dynamically based on the parameters you input earlier. For example:
