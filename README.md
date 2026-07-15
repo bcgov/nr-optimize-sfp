@@ -5,15 +5,22 @@
 
 # nr-optimize-sfp
 <!--- Description of the application. ---> 
-The scripts contained in this repository are designed to create enhanced reports on Shared File & Print (SFP) storage for the 6 Natural Resource Ministries.
+The scripts contained in this repository are designed to create enhanced reports on Shared File & Print (SFP) storage for the Natural Resource Ministries.
 - Agriculture and Foods
-- Energy, Mines, and Low Carbon Innovation
-- Environment and Climate Change Strategy
+- Energy and Climate Solutions
+- Environment and Parks
 - Forests
 - Indigenous Relations and Reconciliation
+- Mining and Critical Minerals
 - Water, Land, and Resource Stewardship
 >
 The reports provide insight into SFP consumption habits and outline areas of concern such as monthly expense, duplication of data, and old / untouched files. Our goal is to arm SFP storage owners with the knowledge of what the data is costing every month and provide them with both "quick wins" for file cleanup as well as alternative, less expensive options for storing their data. We are presently building a self-assessment tool to help SFP storage owners determine whether their data is a suitable fit for Object Storage instead.
+
+>
+**Update: April 2026**
+The Optimization Team is now a part of Connected Services BC (CITZ). 
+Connected Services BC has moved to a new funding model. Incremental storage costs (SFP LANs and Home Drives) are now VOTED, which means they are not billed to Ministry Overhead.
+Going forward, digital storage consumption should be considered from a "responsible use" lens to avoid unnecessary cost to BCGOV as a whole.
 
 ## Documentation
 <!--- Point to another readme or create a GitHub Pages (https://guides.github.com/features/pages/) --->
@@ -34,7 +41,7 @@ By participating in this project you agree to abide by its terms.
 
 ## License
 <!--- Example below, modify accordingly --->
-    Copyright 2018 Province of British Columbia
+    Copyright 2026 Province of British Columbia
 
     Licensed under the Apache License, Version 2.0 (the "License");
     you may not use this file except in compliance with the License.
