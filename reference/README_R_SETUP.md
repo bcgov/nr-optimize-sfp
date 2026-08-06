@@ -1,12 +1,8 @@
 <img src="https://github.com/bcgov/nr-optimize-sfp/blob/main/reference/GFX_OptimizationLogo-Icon_v2.png" width=35% height=35%>
 
 # README for Using R and R Studio
-<<<<<<< HEAD
-## Heather Hay c/o NRIDS Optimization Team 2026
-=======
-## Heather Hay c/o Optimization Team 2026
->>>>>>> 21377a3f9f67e96f9d4b20975639fc487f1d54fe
 
+## Heather Hay c/o NRIDS Optimization Team 2026
 
 ### Installing R and R Studio
 >
