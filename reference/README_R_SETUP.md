@@ -1,12 +1,16 @@
 <img src="https://github.com/bcgov/nr-optimize-sfp/blob/main/reference/GFX_OptimizationLogo-Icon_v2.png" width=35% height=35%>
 
 # README for Using R and R Studio
+<<<<<<< HEAD
 ## Heather Hay c/o NRIDS Optimization Team 2026
+=======
+## Heather Hay c/o Optimization Team 2026
+>>>>>>> 21377a3f9f67e96f9d4b20975639fc487f1d54fe
 
 
 ### Installing R and R Studio
 >
-You need to install these programs from the Software Center. First install R, then Rstudio
+You need to install these programs from the Software Center (Win 10) or Company Portal (Win 11). First install R, then Rstudio
 >
 * **RforWindowsX64 4.1.3 Gen P0**  
 * **RStudioX64 2022.2.0.443 Gen P0**
