@@ -26,17 +26,17 @@
 
 ### How to get the source data
 
-> **Monthly Group Share Reporting Data**
-> Contact your Ministry's MISO and ask for access to the [CITZ Host-Client Reporting Portal](https://bcgov.sharepoint.com/sites/CITZ-Host-Client/ReportingPortal/Forms/AllItems.aspx), specifically the monthly Excel files titled *YYYY-MM_SFP [Ministry Acronym] Usage.xlsx*. 
-> Be sure to tell your MISO why you need the data and how you'll be using it. 
-> Put a request in through your IT Service Desk to add your IDIR as a member of the security group *[Ministry Acronym]_W_MTIC_HOSTINGREPORTSRESTRICTED*. You must attach MISO approval to the request.  
+> **Monthly Group Share Reporting Data**  
+> - Contact your Ministry's MISO and ask for access to the [CITZ Host-Client Reporting Portal](https://bcgov.sharepoint.com/sites/CITZ-Host-Client/ReportingPortal/Forms/AllItems.aspx), specifically the monthly Excel files titled *YYYY-MM_SFP [Ministry Acronym] Usage.xlsx*. 
+> - Be sure to tell your MISO why you need the data and how you'll be using it. 
+> - Put a request in through your IT Service Desk to add your IDIR as a member of the security group *[Ministry Acronym]_W_MTIC_HOSTINGREPORTSRESTRICTED*. You must attach MISO approval to the request.  
 
-> **Quarterly Group Share Enhanced Reporting Data**
-> Contact your Ministry's MISO and ask for permission to have quarterly enhanced reports run on the SFP group shares. 
-> Be sure to tell your MISO why you need the data and how you'll be using it. 
-> Send a request in to the Advanced Solutions Service Desk to ask for this service & attach MISO approval. 
-> There may be a fee for this service that requires Expense Authority approval, ask AdvSol to confirm.
-> You must have a *secure* folder on SFP for Advanced Solutions to drop the report every quarter. If you don't, put in a Service Desk ticket to have one created.  
+> **Quarterly Group Share Enhanced Reporting Data**  
+> - Contact your Ministry's MISO and ask for permission to have quarterly enhanced reports run on the SFP group shares. 
+> - Be sure to tell your MISO why you need the data and how you'll be using it. 
+> - Send a request in to the Advanced Solutions Service Desk to ask for this service & attach MISO approval. 
+> - There may be a fee for this service that requires Expense Authority approval, ask AdvSol to confirm.
+> - You must have a *secure* folder on SFP for Advanced Solutions to drop the report every quarter. If you don't, put in a Service Desk ticket to have one created.  
 
 ### Reporting on the Ministry-level SFP
 >
