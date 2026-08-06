@@ -14,18 +14,19 @@ The scripts contained in this repository are designed to create enhanced reports
 - Mining and Critical Minerals
 - Water, Land, and Resource Stewardship
 >
-The reports provide insight into SFP consumption habits and outline areas of concern such as monthly expense, duplication of data, and old / untouched files. Our goal is to arm SFP storage owners with the knowledge of what the data is costing every month and provide them with both "quick wins" for file cleanup as well as alternative, less expensive options for storing their data. We are presently building a self-assessment tool to help SFP storage owners determine whether their data is a suitable fit for Object Storage instead.
+The reports provide insight into SFP consumption habits and outline areas of concern such as monthly expense, duplication of data, and old / untouched files. Our goal is to arm SFP storage owners with the knowledge of what the data is costing every month and provide them with both "quick wins" for file cleanup as well as alternative, less expensive options for storing their data. 
 
 >
 **Update: April 2026**
 The Optimization Team is now a part of Connected Services BC (CITZ).  
 Connected Services BC has moved to a new funding model. Incremental storage costs (SFP LANs and Home Drives) are now VOTED, which means they are not billed to Ministry Overhead.  
-Going forward, digital storage consumption should be considered from a "responsible use" lens to avoid unnecessary cost to BCGOV as a whole.
+Going forward, digital storage consumption should be considered from a "responsible use" lens to avoid unnecessary cost to BCGOV as a whole.  
+For great information on how to run a cleanup project, including how to use TreeSize Pro for SFP folder cleanup, I recommend you visit the [BCWS Shared Drive Cleanup Project](https://intranet.gov.bc.ca/bcws/corporate-governance/wildfire-risk/risk-projects/shared-drive-cleanup)  
 
 ## Documentation
 <!--- Point to another readme or create a GitHub Pages (https://guides.github.com/features/pages/) --->
-[README_R_SETUP](https://github.com/bcgov/nr-optimize-sfp/blob/main/docs/README_R_SETUP.md) <br>
-[README_EnhancedSFP_Reports](https://github.com/bcgov/nr-optimize-sfp/blob/main/docs/README_EnhancedSFP_Reports.md)
+[README_R_SETUP](https://github.com/bcgov/nr-optimize-sfp/blob/main/reference/README_R_SETUP.md) <br>
+[README_EnhancedSFP_Reports](https://github.com/bcgov/nr-optimize-sfp/blob/main/reference/README_EnhancedSFP_Reports.md)
 
 ## Getting Help or Reporting an Issue
 <!--- Example below, modify accordingly --->

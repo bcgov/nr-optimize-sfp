@@ -1,7 +1,7 @@
 <img src="https://github.com/bcgov/nr-optimize-sfp/blob/main/docs/GFX_OptimizationLogo-Icon_v2.png" width=35% height=35%>
 
 # README for Enhanced SFP Reports
-## Heather Hay c/o NRIDS Optimization Team 2023
+## Heather Hay c/o NRIDS Optimization Team 2026
 
 ### Pre-Requisites
 
@@ -22,7 +22,22 @@
 > The following files need to be in your **source** folder:
 > - **all** of the individual NRM Ministry .xlsx files for monthly group share consumption *that match the month of the report you're compiling*
 > - the NRM Ministry .csv files for shared file enhanced reporting
->   - The enhanced data for ENV & FOR arrives as multiple .csv files and they'll need to be combined into one ENV & FOR file each. You can use this command line [example](https://www.ablebits.com/office-addins-blog/merge-multiple-csv-files-excel/#:~:text=In%20the%20command%20line%2C%20after,%2C%20merged%2Dcsv%2Dfiles.) _copy *.csv YYYY-MM-DD_MIN_SFP_Enhanced_Data.csv_ or one of your own if you have a preferred method.
+>   - The enhanced data for ENV & FOR arrives as multiple .csv files and they'll need to be combined into one ENV & FOR file each. You can use this command line [example](https://www.ablebits.com/office-addins-blog/merge-multiple-csv-files-excel/#:~:text=In%20the%20command%20line%2C%20after,%2C%20merged%2Dcsv%2Dfiles.) _copy *.csv YYYY-MM-DD_MIN_SFP_Enhanced_Data.csv_ or one of your own if you have a preferred method.  
+
+### How to get the source data
+
+> **Monthly Group Share Reporting Data**
+> Contact your Ministry's MISO and ask for access to the [CITZ Host-Client Reporting Portal](https://bcgov.sharepoint.com/sites/CITZ-Host-Client/ReportingPortal/Forms/AllItems.aspx), specifically the monthly Excel files titled *YYYY-MM_SFP [Ministry Acronym] Usage.xlsx*. 
+> Be sure to tell your MISO why you need the data and how you'll be using it. 
+> Put a request in through your IT Service Desk to add your IDIR as a member of the security group *[Ministry Acronym]_W_MTIC_HOSTINGREPORTSRESTRICTED*. You must attach MISO approval to the request.  
+
+> **Quarterly Group Share Enhanced Reporting Data**
+> Contact your Ministry's MISO and ask for permission to have quarterly enhanced reports run on the SFP group shares. 
+> Be sure to tell your MISO why you need the data and how you'll be using it. 
+> Send a request in to the Advanced Solutions Service Desk to ask for this service & attach MISO approval. 
+> There may be a fee for this service that requires Expense Authority approval, ask AdvSol to confirm.
+> You must have a *secure* folder on SFP for Advanced Solutions to drop the report every quarter. If you don't, put in a Service Desk ticket to have one created.  
+
 ### Reporting on the Ministry-level SFP
 >
 > -   open the file ***render_enhanced_sfp_report_overview.R***

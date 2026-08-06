@@ -1,7 +1,7 @@
 <img src="https://github.com/bcgov/nr-optimize-sfp/blob/main/reference/GFX_OptimizationLogo-Icon_v2.png" width=35% height=35%>
 
 # README for Using R and R Studio
-## Heather Hay c/o NRIDS Optimization Team 2023
+## Heather Hay c/o NRIDS Optimization Team 2026
 
 
 ### Installing R and R Studio
@@ -83,7 +83,7 @@ In RStudio, you can go to the Packages tab on the right, select Install, type in
 
 ### Reference Material
 >
->[R For Data Science](https://r4ds.had.co.nz/)
+>[R For Data Science](https://r4ds.hadley.nz/)
 >
 >[Using Projects](https://support.rstudio.com/hc/en-us/articles/200526207-Using-Projects)
 >
