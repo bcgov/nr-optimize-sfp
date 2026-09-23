@@ -1,0 +1,333 @@
+---
+author: "Copyright: Optimization Team 2026"
+date: "Report compiled on `r format(Sys.time(), '%B %d, %Y')`"
+output: html_document
+title: "BCWS Quarterly SFP Comparison Report"
+
+params:
+  old_data: NULL
+  new_data: NULL
+  output_dir: NULL
+  output_excel: NULL
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE, warning = FALSE, message = FALSE)
+
+library(data.table)
+library(DT)
+library(dplyr)
+library(forcats)
+library(glue)
+library(here)
+library(knitr)
+library(lubridate)
+library(magrittr)
+library(openxlsx)
+library(purrr)
+library(scales)
+library(stringr)
+library(stringi)
+library(tidyverse)
+library(zoo)
+
+# set working directory
+here::here()
+```
+
+```{r global, call-external-functions, include = FALSE}
+# load custom functions from external scripts
+source(here("bcws", glue('custom_bcws_functions.R')), local = knitr::knit_global())
+```
+
+```{r global, call-external-list, include = FALSE}
+# load custom list of paths from external scripts
+source(here("bcws", glue('bcws_tabs.R')), local = knitr::knit_global())
+```
+
+```{r load data, include = FALSE}
+# load csv and fill empty cells 
+sfp_old <- fread(params$old_data, na = c("", " ", "NULL"))
+sfp_new <- fread(params$new_data, na = c(""," ","NULL"))
+
+# keep only 7 relevant columns
+sfp_old <- sfp_old[,c(1:2,5:8)]
+sfp_new <- sfp_new[,c(1:2,5:8)]
+
+# rename columns
+colnames(sfp_old) <- c("filename", "path", "sizemb","lastaccessdate","modificationdate","creationdate")
+colnames(sfp_new) <- colnames(sfp_old)
+```
+
+```{r format and filter, include = FALSE}
+format_sfp_data <- function(x) {
+  x %>%
+  mutate(
+    path = tolower(path),
+    sizegb = round(sizemb / 1000, 3),
+    cost = round(sizemb / 1000, 3) * 2.7,
+    lastaccessdate   = convert.date(lastaccessdate),
+    modificationdate = convert.date(modificationdate),
+    creationdate     = convert.date(creationdate),
+    # <<< one-line remap of path values >>>
+    path = remap_substrings(path))%>% 
+  select(filename, path, sizemb, sizegb, lastaccessdate, modificationdate, creationdate)
+}
+```
+
+```{r create a filtering function, include=FALSE}
+filter_by_prefixes <- function(df, prefixes) {
+
+  if (length(prefixes) == 0) {
+    return(df[0, ])
+  }
+
+  keep <- Reduce(
+    `|`,
+    lapply(prefixes, function(p) startsWith(df$path, p))
+  )
+
+  df[keep, ]
+}
+```
+
+```{r create filtered tables, include = FALSE}
+prefixes <- get_prefixes()
+
+filtered_tables_old <- lapply(
+  prefixes,
+  function(x) filter_by_prefixes(format_sfp_data(sfp_old), x)
+)
+
+filtered_tables_new <- lapply(
+  prefixes,
+  function(x) filter_by_prefixes(format_sfp_data(sfp_new), x)
+)
+```
+
+```{r find duplicate files, include = FALSE}
+# find files that are duplicated in both name and size
+find_duplicates <- function(x) {
+  x %>%
+    group_by(filename, sizegb) %>%
+    filter(n() > 1) %>%
+    ungroup()
+}
+
+duplicate_tables_old <- lapply(
+  filtered_tables_old,
+  find_duplicates
+)
+
+duplicate_tables_new <- lapply(
+  filtered_tables_new,
+  find_duplicates
+)
+
+files_duplicated <- function(x, prefixes) {
+
+  prefixes <- prefixes[order(nchar(prefixes), decreasing = TRUE)]
+
+  x %>%
+    mutate(
+      prefix_path = sapply(
+        path,
+        function(p) {
+          matches <- prefixes[startsWith(tolower(p), tolower(prefixes))]
+
+          if (length(matches) > 0) {
+            matches[1]   # longest matching prefix
+          } else {
+            NA_character_
+          }
+        }
+      )
+    ) %>%
+    filter(!is.na(prefix_path)) %>%
+    group_by(prefix_path) %>%
+    summarise(
+      duplicates = n(),
+      .groups = "drop"
+    )
+}
+
+prefixes <- get_prefixes()
+
+files_duplicated_old <- Map(
+  files_duplicated,
+  duplicate_tables_old,
+  prefixes
+)
+
+files_duplicated_new <- Map(
+  files_duplicated,
+  duplicate_tables_new,
+  prefixes
+)
+```
+
+```{r join duplicate tables, include=FALSE}
+join_dupes <- function(old_df, new_df) {
+
+  full_join(
+    old_df,
+    new_df,
+    by = "prefix_path",
+    suffix = c("_old", "_new")
+  ) %>%
+    rename(
+      `folder path` = prefix_path,
+      `old dupe count` = duplicates_old,
+      `new dupe count` = duplicates_new
+    ) %>%
+    mutate(
+      across(
+        c(`old dupe count`, `new dupe count`),
+        ~ replace_na(., 0)
+      ),
+      `dupe count change` =
+        as.numeric(`new dupe count`) -
+        as.numeric(`old dupe count`)
+    )
+}
+
+joined_dupes <- Map(
+  join_dupes,
+  files_duplicated_old,
+  files_duplicated_new
+)
+```
+
+
+```{r calculate folder totals, include = FALSE}
+calc_folder_totals <- function(x, prefixes) {
+
+  prefixes <- prefixes[order(nchar(prefixes), decreasing = TRUE)]
+
+  x %>%
+    mutate(
+      prefix_path = sapply(
+        path,
+        function(p) {
+          matches <- prefixes[startsWith(
+            tolower(p),
+            tolower(prefixes)
+          )]
+
+          if (length(matches) > 0) {
+            matches[1]
+          } else {
+            NA_character_
+          }
+        }
+      )
+    ) %>%
+    filter(!is.na(prefix_path)) %>%
+    group_by(prefix_path) %>%
+    summarise(
+      `folder size gb` = sum(sizegb, na.rm = TRUE),
+      `number of files` = n(),
+      .groups = "drop"
+    )
+}
+
+prefixes <- get_prefixes()
+
+folder_totals_old <- Map(
+  calc_folder_totals,
+  filtered_tables_old,
+  prefixes
+)
+
+folder_totals_new <- Map(
+  calc_folder_totals,
+  filtered_tables_new,
+  prefixes
+)
+```
+
+```{r join old and new tables, include = FALSE}
+join_totals <- function(old_totals, new_totals, join_dupes) {
+
+  epsilon <- 1e-6
+
+  full_join(
+    old_totals,
+    new_totals,
+    by = "prefix_path",
+    suffix = c("_old", "_new")
+  ) %>%
+    rename(
+      `folder path` = prefix_path,
+      `old folder size gb` = `folder size gb_old`,
+      `new folder size gb` = `folder size gb_new`,
+      `old file count` = `number of files_old`,
+      `new file count` = `number of files_new`,
+    ) %>%
+    mutate(
+      across(
+        c(
+          `old folder size gb`,
+          `new folder size gb`,
+          `old file count`,
+          `new file count`,
+        ),
+        ~ replace_na(., 0)
+      )
+    ) %>%
+    mutate(
+      "Accountable Excluded Manager Position" = NA,
+      "Accountable Excluded Manager Incumbent" = NA,
+      `folder size change gb` =
+        `new folder size gb` - `old folder size gb`,
+      `file count change` =
+        `new file count` - `old file count`,
+    ) %>%
+    full_join(join_dupes, by = "folder path") %>%
+    mutate(
+      across(
+        c(`old dupe count`, `new dupe count`),
+        ~ replace_na(., 0)
+      ),
+      `dupe count change` =
+        `new dupe count` - `old dupe count`
+    ) %>%
+    mutate(
+      status = case_when(
+        `old folder size gb` == 0 &
+          `new folder size gb` > 0 ~ "New",
+
+        `old folder size gb` > 0 &
+          `new folder size gb` == 0 ~ "Removed",
+
+        abs(`folder size change gb`) < epsilon &
+          `file count change` == 0 &
+          `dupe count change` == 0 ~ "Unchanged",
+
+        TRUE ~ "Modified"
+      )
+    ) %>%
+    select(
+      `Accountable Excluded Manager Position`,
+      `Accountable Excluded Manager Incumbent`,
+       status,
+      `folder path`,
+      `previous quarter drive size gb` = `old folder size gb`,
+      `new quarter drive size gb` = `new folder size gb`,
+      `drive size change gb` = `folder size change gb`,
+      `previous quarter file count` = `old file count`,
+      `new quarter file count` = `new file count`,
+      `file count change`,
+      `previous quarter dupe count` = `old dupe count`,
+      `new quarter dupe count` = `new dupe count`,
+      `dupe count change`
+      )
+}
+
+joined_totals <- Map(
+  join_totals,
+  folder_totals_old,
+  folder_totals_new,
+  joined_dupes
+)
+```

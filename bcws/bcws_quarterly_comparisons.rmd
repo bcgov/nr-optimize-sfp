@@ -1,0 +1,449 @@
+---
+author: "Copyright: Optimization Team 2026"
+date: "Report compiled on `r format(Sys.time(), '%B %d, %Y')`"
+output: html_document
+title: "BCWS Quarterly SFP Comparison Report"
+subtitle: "`r params$subline`"
+
+params:
+  old_data: NULL
+  new_data: NULL
+  subline: NULL
+  output_dir: NULL
+  output_excel: NULL
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE, warning = FALSE, message = FALSE)
+
+library(data.table)
+library(DT)
+library(dplyr)
+library(forcats)
+library(glue)
+library(here)
+library(knitr)
+library(lubridate)
+library(magrittr)
+library(openxlsx)
+library(purrr)
+library(scales)
+library(stringr)
+library(stringi)
+library(tidyverse)
+library(zoo)
+
+# set working directory
+here::here()
+```
+
+```{r global, call-external-functions, include = FALSE}
+# load custom functions from external scripts
+source(here("scripts", glue('custom_bcws_functions.R')), local = knitr::knit_global())
+```
+
+```{r global, call-external-list, include = FALSE}
+# load custom list of paths from external scripts
+source(here("bcws", glue('bcws_tabs.R')), local = knitr::knit_global())
+```
+
+```{r load data, include = FALSE}
+# load csv and fill empty cells 
+sfp_old <- fread(params$old_data, na = c("", " ", "NULL"))
+sfp_new <- fread(params$new_data, na = c(""," ","NULL"))
+#sfp_old <- fread(here("source/archival_source", "2025_03_28_BCWS_SFP_Enhanced_Data.csv"), na = c("", " ", "NULL"))
+#sfp_new <- fread(here("source", "2026-06-30_BCWS_SFP_Enhanced_Data.csv"), na = c(""," ","NULL"))
+
+# keep only relevant columns
+sfp_old <- sfp_old[,c(1:2,5:8)]
+sfp_new <- sfp_new[,c(1:2,5:8)]
+
+# rename columns
+
+colnames(sfp_old) <- c("filename", "path", "sizemb","lastaccessdate","modificationdate","creationdate")
+colnames(sfp_new) <- colnames(sfp_old)
+```
+
+```{r format and filter, include = FALSE}
+format_sfp_data <- function(x) {
+  x %>%
+  mutate(
+    path = tolower(path),
+    sizegb = round(sizemb / 1000, 3),
+    cost = round(sizemb / 1000, 3) * 2.7,
+    lastaccessdate   = convert.date(lastaccessdate),
+    modificationdate = convert.date(modificationdate),
+    creationdate     = convert.date(creationdate),
+    # <<< one-line remap of path values >>>
+    path = remap_substrings(path))%>% 
+  select(filename, path, sizemb, sizegb, cost, lastaccessdate, modificationdate, creationdate)
+}
+```
+
+```{r create a filtering function, include=FALSE}
+filter_by_prefixes <- function(df, prefixes) {
+
+  if (length(prefixes) == 0) {
+    return(df[0, ])
+  }
+
+  keep <- Reduce(
+    `|`,
+    lapply(prefixes, function(p) startsWith(df$path, p))
+  )
+
+  df[keep, ]
+}
+```
+
+```{r create filtered tables, include = FALSE}
+prefixes <- get_prefixes()
+
+filtered_tables_old <- lapply(
+  prefixes,
+  function(x) filter_by_prefixes(format_sfp_data(sfp_old), x)
+)
+
+#names(filtered_tables_old)
+
+filtered_tables_new <- lapply(
+  prefixes,
+  function(x) filter_by_prefixes(format_sfp_data(sfp_new), x)
+)
+
+#names(filtered_tables_new)
+#head(filtered_tables_new$depot)
+```
+
+```{r find duplicate files, include = FALSE}
+# find files that are duplicated in both name and size
+find_duplicates <- function(x) {
+  x %>%
+    group_by(filename, sizegb) %>%
+    filter(n() > 1) %>%
+    ungroup()
+}
+
+duplicate_tables_old <- lapply(
+  filtered_tables_old,
+  find_duplicates
+)
+
+duplicate_tables_new <- lapply(
+  filtered_tables_new,
+  find_duplicates
+)
+
+files_duplicated <- function(x, prefixes) {
+
+  prefixes <- prefixes[order(nchar(prefixes), decreasing = TRUE)]
+
+  x %>%
+    mutate(
+      prefix_path = sapply(
+        path,
+        function(p) {
+          matches <- prefixes[startsWith(tolower(p), tolower(prefixes))]
+
+          if (length(matches) > 0) {
+            matches[1]   # longest matching prefix
+          } else {
+            NA_character_
+          }
+        }
+      )
+    ) %>%
+    filter(!is.na(prefix_path)) %>%
+    group_by(prefix_path) %>%
+    summarise(
+      duplicates = n(),
+      .groups = "drop"
+    )
+}
+
+prefixes <- get_prefixes()
+
+files_duplicated_old <- Map(
+  files_duplicated,
+  duplicate_tables_old,
+  prefixes
+)
+
+files_duplicated_new <- Map(
+  files_duplicated,
+  duplicate_tables_new,
+  prefixes
+)
+```
+
+```{r join duplicate tables, include=FALSE}
+join_dupes <- function(old_df, new_df) {
+
+  full_join(
+    old_df,
+    new_df,
+    by = "prefix_path",
+    suffix = c("_old", "_new")
+  ) %>%
+    rename(
+      `folder path` = prefix_path,
+      `old dupe count` = duplicates_old,
+      `new dupe count` = duplicates_new
+    ) %>%
+    mutate(
+      across(
+        c(`old dupe count`, `new dupe count`),
+        ~ replace_na(., 0)
+      ),
+      `dupe count change` =
+        as.numeric(`new dupe count`) -
+        as.numeric(`old dupe count`)
+    )
+}
+
+joined_dupes <- Map(
+  join_dupes,
+  files_duplicated_old,
+  files_duplicated_new
+)
+
+#head(joined_dupes$hq_victoria)
+```
+
+
+```{r calculate folder totals, include = FALSE}
+calc_folder_totals <- function(x, prefixes) {
+
+  prefixes <- prefixes[order(nchar(prefixes), decreasing = TRUE)]
+
+  x %>%
+    mutate(
+      prefix_path = sapply(
+        path,
+        function(p) {
+          matches <- prefixes[startsWith(
+            tolower(p),
+            tolower(prefixes)
+          )]
+
+          if (length(matches) > 0) {
+            matches[1]
+          } else {
+            NA_character_
+          }
+        }
+      )
+    ) %>%
+    filter(!is.na(prefix_path)) %>%
+    group_by(prefix_path) %>%
+    summarise(
+      `folder size gb` = sum(sizegb, na.rm = TRUE),
+      `number of files` = n(),
+      `folder cost` = sum(cost, na.rm = TRUE),
+      .groups = "drop"
+    )
+}
+
+prefixes <- get_prefixes()
+
+folder_totals_old <- Map(
+  calc_folder_totals,
+  filtered_tables_old,
+  prefixes
+)
+
+folder_totals_new <- Map(
+  calc_folder_totals,
+  filtered_tables_new,
+  prefixes
+)
+
+#head(folder_totals_old$hq_victoria)
+```
+
+```{r join old and new tables, include = FALSE}
+join_totals <- function(old_totals, new_totals, join_dupes) {
+
+  epsilon <- 1e-6
+
+  full_join(
+    old_totals,
+    new_totals,
+    by = "prefix_path",
+    suffix = c("_old", "_new")
+  ) %>%
+    rename(
+      `folder path` = prefix_path,
+      `old folder size gb` = `folder size gb_old`,
+      `new folder size gb` = `folder size gb_new`,
+      `old file count` = `number of files_old`,
+      `new file count` = `number of files_new`,
+      `old folder cost` = `folder cost_old`,
+      `new folder cost` = `folder cost_new`
+    ) %>%
+    mutate(
+      across(
+        c(
+          `old folder size gb`,
+          `new folder size gb`,
+          `old file count`,
+          `new file count`,
+          `old folder cost`,
+          `new folder cost`
+        ),
+        ~ replace_na(., 0)
+      )
+    ) %>%
+    mutate(
+      "Accountable Excluded Manager Position" = NA,
+      "Accountable Excluded Manager Incumbent" = NA,
+      `folder size change gb` =
+        `new folder size gb` - `old folder size gb`,
+      `file count change` =
+        `new file count` - `old file count`,
+      `folder cost change` =
+        `new folder cost` - `old folder cost`
+    ) %>%
+    full_join(join_dupes, by = "folder path") %>%
+    mutate(
+      across(
+        c(`old dupe count`, `new dupe count`),
+        ~ replace_na(., 0)
+      ),
+      `dupe count change` =
+        `new dupe count` - `old dupe count`
+    ) %>%
+    mutate(
+      status = case_when(
+        `old folder size gb` == 0 &
+          `new folder size gb` > 0 ~ "New",
+
+        `old folder size gb` > 0 &
+          `new folder size gb` == 0 ~ "Removed",
+
+        abs(`folder size change gb`) < epsilon &
+          `file count change` == 0 &
+          abs(`folder cost change`) < epsilon &
+          `dupe count change` == 0 ~ "Unchanged",
+
+        TRUE ~ "Modified"
+      )
+    ) %>%
+    select(
+      `Accountable Excluded Manager Position`,
+      `Accountable Excluded Manager Incumbent`,
+       status,
+      `folder path`,
+      `previous quarter drive size gb` = `old folder size gb`,
+      `new quarter drive size gb` = `new folder size gb`,
+      `drive size change gb` = `folder size change gb`,
+      `previous quarter drive cost/month` = `old folder cost`,
+      `new quarter drive cost/month` = `new folder cost`,
+      `drive cost change/month` = `folder cost change`,
+      `previous quarter file count` = `old file count`,
+      `new quarter file count` = `new file count`,
+      `file count change`,
+      `previous quarter dupe count` = `old dupe count`,
+      `new quarter dupe count` = `new dupe count`,
+      `dupe count change`
+      )
+}
+
+joined_totals <- Map(
+  join_totals,
+  folder_totals_old,
+  folder_totals_new,
+  joined_dupes
+)
+
+#head(joined_totals$hq_kam_pwcc)
+```
+
+```{r write output to Excel file, include = FALSE}
+# create workbook
+excel <- createWorkbook()
+
+# create sheet names
+firstSheet = "Depot"
+secondSheet = "HQ Victoria"
+thirdSheet = "HQ Kamloops PWCC"
+
+# add worksheets to workbook
+sheet.names(firstSheet)
+sheet.names(secondSheet)
+sheet.names(thirdSheet)
+
+# assign data tables to worksheets
+dt.worksheets(1, joined_totals$depot)
+dt.worksheets(2, joined_totals$hq_victoria) 
+dt.worksheets(3, joined_totals$hq_kam_pwcc) 
+
+# freeze top row of all sheets
+freeze.panes(1)
+freeze.panes(2)
+freeze.panes(3)
+
+# (Optional) Add filter
+column.filter(1)
+column.filter(2)
+column.filter(3)
+
+# set conditional colour format on columns 7, 10, 13, and 15 for values < 0
+cond.colour(1, nrow(joined_totals$depot))
+cond.colour(2, nrow(joined_totals$hq_victoria))
+cond.colour(3, nrow(joined_totals$hq_kam_pwcc))
+
+# set currency format on column
+currency.format(1, nrow(joined_totals$depot))
+currency.format(2, nrow(joined_totals$hq_victoria))
+currency.format(3, nrow(joined_totals$hq_kam_pwcc))
+
+# set custom column widths for all sheets
+column.width(1)
+column.width(2)
+column.width(3)
+
+# use params$output_dir when rendered, otherwise use local test folder
+output_dir <- if (exists("params") &&
+                  !is.null(params$output_dir)) {
+  params$output_dir
+} else {
+  here::here("output")
+}
+
+if (!dir.exists(output_dir)) {
+  dir.create(output_dir, recursive = TRUE)
+}
+
+if (length(joined_totals) == 0) {
+  stop("joined_totals is empty")
+}
+
+subline <- if (exists("params") &&
+               !is.null(params$subline)) {
+  params$subline
+} else {
+  "TEST"
+}
+
+# output file name
+safe_subline <- gsub("[^A-Za-z0-9_]", "_", subline)
+
+output_excel <- paste0(
+  "BCWS_Drive_Comparison_Report_",
+  safe_subline,
+  ".xlsx"
+)
+
+# full file path
+output_file <- file.path(output_dir, output_excel)
+
+# save the workbook to file
+saveWorkbook(
+  excel,
+  file = output_file,
+  overwrite = TRUE
+)
+
+message("Workbook saved to: ", output_file)
+```

@@ -1,0 +1,195 @@
+---
+author: "Copyright: Optimization Team 2026"
+date: "Report compiled on `r format(Sys.time(), '%B %d, %Y')`"
+output: html_document
+title: "BCWS Quarterly SAN Comparison Report"
+
+params:
+  old_data: NULL
+  new_data: NULL
+  output_dir: NULL
+  output_excel: NULL
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE, warning = FALSE, message = FALSE, fig.width = 7, fig.height = 5, fig.align = "center", dev = "cairo_pdf", fig.pos = "H", fig.path = 'figure/', out.extra = "")
+library(data.table)
+library(DT)
+library(dbplyr)
+library(dplyr)
+library(forcats)
+library(glue)
+library(here)
+library(knitr)
+library(lubridate)
+library(magrittr)
+library(openxlsx)
+library(purrr)
+library(scales)
+library(stringr)
+library(stringi)
+library(tidyverse)
+library(shiny)
+library(zoo)
+
+# set working directory
+here::here()
+```
+
+```{r global, call-external-functions, include = FALSE}
+# load custom functions from external scripts
+source(here("bcws", glue('custom_bcws_functions.R')), local = knitr::knit_global())
+```
+
+```{r load data, include = FALSE}
+# load csv and fill empty cells 
+san_old <- read_csv(params$old_data, na = c("", " ", "NULL"))
+san_new <- read_csv(params$new_data, na = c(""," ","NULL"))
+
+
+#head(san_old)
+#head(san_new)
+```
+
+```{r format and filter, include = FALSE}
+format_san_data <- function(x,y) {
+  x %>%
+  mutate(
+    folder_path = stringr::word(path, 1, 5, sep = "\\\\"),
+    sizegb = round(sizemb / 1000, 3),
+    cost = round(sizemb / 1000, 3) * 0.9,
+    backup = round(sizemb / 1000, 3) * 0.36,
+    lastaccessdate   = convert.date(lastaccessdate),
+    modificationdate = convert.date(modificationdate),
+    creationdate     = convert.date(creationdate)) %>% 
+    select(filename, folder_path, path, sizemb, sizegb, backup, lastaccessdate, modificationdate, creationdate) 
+  }
+
+san_old_data <- format_san_data(san_old, "training$")
+san_new_data <- format_san_data(san_new, "training$")
+
+head(san_old_data)
+head(san_new_data)
+```
+
+```{r find duplicate files, include = FALSE}
+# find files that are duplicated in both name and size
+find_duplicates <- function(x) {
+  duplicate_files <- x %>% 
+  group_by(filename, sizegb, folder_path) %>% 
+  filter( n() > 1 )
+}
+
+san_old_dupes_find <- find_duplicates(san_old_data)
+san_new_dupes_find <- find_duplicates(san_new_data)
+
+files_duplicated <- function(x) {
+  x[!duplicated(x[ , c("filename", "sizegb", "folder_path")]), ] %>% 
+  mutate(duplicate_count = n()) %>%
+  group_by(folder_path) %>% 
+  summarize(duplicates = sum(duplicate_count)) %>% 
+  select(folder_path, duplicates)
+}
+
+dupe_files_old <- files_duplicated(san_old_dupes_find)
+dupe_files_new <- files_duplicated(san_new_dupes_find)
+
+join_dupes <- inner_join(dupe_files_old, dupe_files_new, by = "folder_path")%>% 
+  select("folder path" = folder_path, "old dupe count" = "duplicates.x","new dupe count" = "duplicates.y")
+
+join_dupes$"dupe count change" <- as.numeric(join_dupes$"old dupe count") - as.numeric(join_dupes$"new dupe count")
+
+head(join_dupes)
+```
+
+
+```{r calculate folder totals, include = FALSE}
+calc_folder_totals <- function(x) {
+  x %>% 
+    group_by(folder_path) %>% 
+    summarize("folder size gb" = sum(sizegb), "number of files" = n()) %>% 
+    select("folder path" = folder_path, "folder size gb", "number of files")
+}
+
+old_totals <- calc_folder_totals(san_old_data)
+new_totals<- calc_folder_totals(san_new_data)
+
+head(old_totals)
+head(new_totals)
+```
+
+```{r join old and new tables, include = FALSE}
+join_totals <- inner_join(old_totals,new_totals, by = "folder path") %>% 
+  select("folder path", "old folder size gb" = "folder size gb.x","new folder size gb" = "folder size gb.y", "old file count" = "number of files.x","new file count" =  "number of files.y")
+
+join_totals$"folder size change gb" <- as.numeric(join_totals$"old folder size gb") - as.numeric(join_totals$"new folder size gb")
+join_totals$"file count change" <- as.numeric(join_totals$"old file count") - as.numeric(join_totals$"new file count")
+
+flip_values <- function(x) {
+  x <- -1 * x
+}
+
+join_totals$"folder size change gb" <- flip_values(join_totals$"folder size change gb")
+join_totals$"file count change" <- flip_values(join_totals$"file count change")
+
+join_totals <- inner_join(join_totals, join_dupes, by = "folder path") %>% 
+  select("folder path", "old folder size gb", "new folder size gb", "folder size change gb", "old file count", "new file count", "file count change", "old dupe count", "new dupe count", "dupe count change")
+
+join_totals$"dupe count change" <- flip_values(join_totals$"dupe count change")
+
+epsilon <- 1e-6
+
+join_totals <- join_totals %>%
+  mutate(
+    status = case_when(
+      # New folder (only appears in new dataset)
+      `old folder size gb` == 0 & `new folder size gb` > 0 ~ "New",
+
+      # Removed folder (only appears in old dataset)
+      `old folder size gb` > 0 & `new folder size gb` == 0 ~ "Removed",
+
+      # No change across key metrics
+      abs(`folder size change gb`) < epsilon &
+      abs(`file count change`) == 0 &
+      abs(`dupe count change`) == 0 ~ "Unchanged",
+
+      TRUE ~ "Modified"
+    ),
+    "Accountable Excluded Manager Position" = NA,
+    "Accountable Excluded Manager Incumbent" = NA,
+  )
+
+join_totals <- join_totals %>%
+  select("Accountable Excluded Manager Position", "Accountable Excluded Manager Incumbent", status,	"folder path", "old folder size gb", "new folder size gb", "folder size change gb", "old file count", "new file count", "file count change", "old dupe count", "new dupe count", "dupe count change")
+
+join_totals <- join_totals %>%
+  rename(
+    `previous quarter drive size gb` = `old folder size gb`,
+    `new quarter drive size gb` = `new folder size gb`,
+    `drive size change gb` = `folder size change gb`,
+    `previous quarter file count` = `old file count`,
+    `new quarter file count` = `new file count`,
+    `previous quarter dupe count` = `old dupe count`,
+    `new quarter dupe count` = `new dupe count`
+  )
+
+head(join_totals)
+```
+
+```{r, include = FALSE}
+# use params$output_dir when rendered, otherwise use local test folder
+output_dir <- if (exists("params") &&
+                  !is.null(params$output_dir)) {
+  params$output_dir
+} else {
+  here::here("output")
+}
+
+if (!dir.exists(output_dir)) {
+  dir.create(output_dir, recursive = TRUE)
+}
+
+if (length(join_totals) == 0) {
+  stop("join_totals is empty")
+}
+```
