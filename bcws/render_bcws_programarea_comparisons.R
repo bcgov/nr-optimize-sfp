@@ -4,7 +4,7 @@ library(openxlsx)
 library(glue)
 
 # load custom functions from external scripts
-source(here("scripts", glue('custom_bcws_functions.R')), local = knitr::knit_global())
+source(here("bcws", glue('custom_bcws_functions.R')), local = knitr::knit_global())
 
 # ------------------------------------------------------------
 # Function: render_bcws_programarea_comparisons
