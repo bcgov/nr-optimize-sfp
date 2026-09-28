@@ -36,31 +36,31 @@ prefix_hq_kam_pwcc <- c(
 
 prefix_hq_kam_pwcc <- tolower(prefix_hq_kam_pwcc)
 
-prefix_depot <- c(
-  "\\\\sfp.idir.bcgov\\s165\\s65010\\!Project\\CFED",
-  "\\\\sfp.idir.bcgov\\s165\\s65010\\!Publish\\CFED",
-  "\\\\sfp.idir.bcgov\\s165\\s65010\\!Workgrp\\Administration",
-  "\\\\sfp.idir.bcgov\\s165\\s65010\\!Workgrp\\BCWS FORMS",
-  "\\\\sfp.idir.bcgov\\s165\\s65010\\!Workgrp\\DCO",
-  "\\\\sfp.idir.bcgov\\s165\\s65010\\!Workgrp\\Equipment",
-  "\\\\sfp.idir.bcgov\\s165\\s65010\\!Workgrp\\FINADMIN_ScanDocs",
-  "\\\\sfp.idir.bcgov\\s165\\s65010\\!Workgrp\\Finance",
-  "\\\\sfp.idir.bcgov\\s165\\s65010\\!Workgrp\\Fleet",
-  "\\\\sfp.idir.bcgov\\s165\\s65010\\!Workgrp\\HR",
-  "\\\\sfp.idir.bcgov\\s165\\s65010\\!Workgrp\\IMIS",
-  "\\\\sfp.idir.bcgov\\s165\\s65010\\!Workgrp\\Kit Lists",
-  "\\\\sfp.idir.bcgov\\s165\\s65010\\!Workgrp\\Maintenance & Retrieval",
-  "\\\\sfp.idir.bcgov\\s165\\s65010\\!Workgrp\\Mobile Camps",
-  "\\\\sfp.idir.bcgov\\s165\\s65010\\!Workgrp\\Pictures",
-  "\\\\sfp.idir.bcgov\\s165\\s65010\\!Workgrp\\Purchasing",
-  "\\\\sfp.idir.bcgov\\s165\\s65010\\!Workgrp\\Security",
-  "\\\\sfp.idir.bcgov\\s165\\s65010\\!Workgrp\\SOG-SOP",
-  "\\\\sfp.idir.bcgov\\s165\\s65010\\!Workgrp\\Specificiations",
-  "\\\\sfp.idir.bcgov\\s165\\s65010\\!Workgrp\\Warehousing",
-  "\\\\sfp.idir.bcgov\\s165\\s65010\\!Workgrp\\Work Schedules and Standby Lists"
-)
-
-prefix_depot <- tolower(prefix_depot)
+#prefix_depot <- c(
+#  "\\\\sfp.idir.bcgov\\s165\\s65010\\!Project\\CFED",
+#  "\\\\sfp.idir.bcgov\\s165\\s65010\\!Publish\\CFED",
+#  "\\\\sfp.idir.bcgov\\s165\\s65010\\!Workgrp\\Administration",
+#  "\\\\sfp.idir.bcgov\\s165\\s65010\\!Workgrp\\BCWS FORMS",
+#  "\\\\sfp.idir.bcgov\\s165\\s65010\\!Workgrp\\DCO",
+#  "\\\\sfp.idir.bcgov\\s165\\s65010\\!Workgrp\\Equipment",
+#  "\\\\sfp.idir.bcgov\\s165\\s65010\\!Workgrp\\FINADMIN_ScanDocs",
+#  "\\\\sfp.idir.bcgov\\s165\\s65010\\!Workgrp\\Finance",
+#  "\\\\sfp.idir.bcgov\\s165\\s65010\\!Workgrp\\Fleet",
+#  "\\\\sfp.idir.bcgov\\s165\\s65010\\!Workgrp\\HR",
+#  "\\\\sfp.idir.bcgov\\s165\\s65010\\!Workgrp\\IMIS",
+#  "\\\\sfp.idir.bcgov\\s165\\s65010\\!Workgrp\\Kit Lists",
+#  "\\\\sfp.idir.bcgov\\s165\\s65010\\!Workgrp\\Maintenance & Retrieval",
+#  "\\\\sfp.idir.bcgov\\s165\\s65010\\!Workgrp\\Mobile Camps",
+#  "\\\\sfp.idir.bcgov\\s165\\s65010\\!Workgrp\\Pictures",
+#  "\\\\sfp.idir.bcgov\\s165\\s65010\\!Workgrp\\Purchasing",
+#  "\\\\sfp.idir.bcgov\\s165\\s65010\\!Workgrp\\Security",
+#  "\\\\sfp.idir.bcgov\\s165\\s65010\\!Workgrp\\SOG-SOP",
+#  "\\\\sfp.idir.bcgov\\s165\\s65010\\!Workgrp\\Specificiations",
+#  "\\\\sfp.idir.bcgov\\s165\\s65010\\!Workgrp\\Warehousing",
+#  "\\\\sfp.idir.bcgov\\s165\\s65010\\!Workgrp\\Work Schedules and Standby Lists"
+#)
+#
+#prefix_depot <- tolower(prefix_depot)
 
 prefix_training <- c(
   "\\\\bcwsdata.nrs.bcgov\\training$\\Aviation",
@@ -140,7 +140,7 @@ prefix_hq_victoria <- tolower(prefix_hq_victoria)
 get_prefixes <- function() {
   list(
     hq_kam_pwcc = prefix_hq_kam_pwcc,
-    depot = prefix_depot,
+    #depot = prefix_depot,
     hq_victoria = prefix_hq_victoria
   )
 }

@@ -37,12 +37,16 @@ here::here()
 
 ```{r global, call-external-functions, include = FALSE}
 # load custom functions from external scripts
-source(here("bcws", glue('custom_bcws_functions.R')), local = knitr::knit_global())
+source(here("scripts", glue('custom_bcws_functions.R')), local = knitr::knit_global())
 ```
 
 ```{r global, call-external-list, include = FALSE}
 # load custom list of paths from external scripts
-source(here("bcws", glue('bcws_tabs.R')), local = knitr::knit_global())
+source(here("scripts", glue('bcws_tabs.R')), local = knitr::knit_global())
+```
+
+```{r global, call-external-names, include = FALSE}
+source(here("scripts", glue("bcws_accountability.R")), local = knitr::knit_global())
 ```
 
 ```{r load data, include = FALSE}
@@ -251,7 +255,7 @@ join_totals <- function(old_totals, new_totals, join_dupes) {
 
   epsilon <- 1e-6
 
-  full_join(
+  result <- full_join(
     old_totals,
     new_totals,
     by = "prefix_path",
@@ -262,7 +266,7 @@ join_totals <- function(old_totals, new_totals, join_dupes) {
       `old folder size gb` = `folder size gb_old`,
       `new folder size gb` = `folder size gb_new`,
       `old file count` = `number of files_old`,
-      `new file count` = `number of files_new`,
+      `new file count` = `number of files_new`
     ) %>%
     mutate(
       across(
@@ -270,18 +274,20 @@ join_totals <- function(old_totals, new_totals, join_dupes) {
           `old folder size gb`,
           `new folder size gb`,
           `old file count`,
-          `new file count`,
+          `new file count`
         ),
         ~ replace_na(., 0)
       )
     ) %>%
     mutate(
-      "Accountable Excluded Manager Position" = NA,
-      "Accountable Excluded Manager Incumbent" = NA,
       `folder size change gb` =
         `new folder size gb` - `old folder size gb`,
       `file count change` =
-        `new file count` - `old file count`,
+        `new file count` - `old file count`
+    ) %>%
+    left_join(
+      accountability_lookup,
+      by = c("folder path" = "folder_path")
     ) %>%
     full_join(join_dupes, by = "folder path") %>%
     mutate(
@@ -310,7 +316,7 @@ join_totals <- function(old_totals, new_totals, join_dupes) {
     select(
       `Accountable Excluded Manager Position`,
       `Accountable Excluded Manager Incumbent`,
-       status,
+      status,
       `folder path`,
       `previous quarter drive size gb` = `old folder size gb`,
       `new quarter drive size gb` = `new folder size gb`,
@@ -321,7 +327,27 @@ join_totals <- function(old_totals, new_totals, join_dupes) {
       `previous quarter dupe count` = `old dupe count`,
       `new quarter dupe count` = `new dupe count`,
       `dupe count change`
+    )
+
+  missing_lookup <- result %>%
+    filter(
+      is.na(`Accountable Excluded Manager Position`)
+    )
+
+  if (nrow(missing_lookup) > 0) {
+    warning(
+      paste(
+        "Missing accountability lookup for:",
+        paste(
+          unique(missing_lookup$`folder path`),
+          collapse = "; "
+        )
       )
+    )
+  }
+
+  result
+
 }
 
 joined_totals <- Map(
@@ -329,5 +355,20 @@ joined_totals <- Map(
   folder_totals_old,
   folder_totals_new,
   joined_dupes
+)
+
+names(joined_totals) <- names(folder_totals_old)
+
+names(joined_totals)
+
+lapply(joined_totals, class)
+
+lapply(joined_totals, dim)
+
+lapply(
+  joined_totals,
+  function(x) {
+    sum(is.na(x$`Accountable Excluded Manager Position`))
+  }
 )
 ```
