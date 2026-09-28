@@ -1,0 +1,349 @@
+---
+author: "Copyright: Optimization Team 2026"
+date: "Report compiled on `r format(Sys.time(), '%B %d, %Y')`"
+output: html_document
+title: "BCWS Quarterly SFP Fire Centre Comparison Report"
+
+params:
+  old_data: NULL
+  new_data: NULL
+  output_dir: NULL
+  output_excel: NULL
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE, warning = FALSE, message = FALSE)
+
+library(data.table)
+library(DT)
+library(dplyr)
+library(forcats)
+library(glue)
+library(here)
+library(knitr)
+library(lubridate)
+library(magrittr)
+library(openxlsx)
+library(purrr)
+library(scales)
+library(stringr)
+library(stringi)
+library(tidyverse)
+library(zoo)
+
+# set working directory
+here::here()
+```
+
+```{r global, call-external-functions, include = FALSE}
+# load custom functions from external scripts
+source(here("scripts", glue('custom_bcws_functions.R')), local = knitr::knit_global())
+```
+
+```{r global, call-external-names, include = FALSE}
+source(here("scripts", glue("bcws_accountability.R")), local = knitr::knit_global())
+```
+
+```{r load data, include = FALSE}
+# load csv and fill empty cells 
+sfp_old <- fread(params$old_data, na = c("", " ", "NULL"))
+sfp_new <- fread(params$new_data, na = c(""," ","NULL"))
+
+# keep only relevant columns
+sfp_old <- sfp_old[,c(1:2,5:9)]
+sfp_new <- sfp_new[,c(1:2,5:9)]
+
+# rename columns
+colnames(sfp_old) <- c("filename", "path", "sizemb","lastaccessdate","modificationdate","creationdate", "share")
+colnames(sfp_new) <- colnames(sfp_old)
+```
+
+```{r format and filter, include = FALSE}
+format_sfp_data_1 <- function(x) {
+  x %>%
+  mutate(
+    path = tolower(path),
+    sizegb = round(sizemb / 1000, 3),
+    cost = round(sizemb / 1000, 3) * 2.7,
+    lastaccessdate   = convert.date(lastaccessdate),
+    modificationdate = convert.date(modificationdate),
+    creationdate     = convert.date(creationdate),
+    # <<< one-line remap of path values >>>
+    path = remap_substrings(path),
+    path = stringr::word(path, 1, 7, sep = "\\\\"),) %>% 
+    filter(!share %in% c("S65777","S65002","S65003","S65008","S65011")) %>% 
+  select(filename, path, sizemb, sizegb, lastaccessdate, modificationdate, creationdate, share)
+}
+
+filtered_tables_old_1 <- format_sfp_data_1(sfp_old)
+
+filtered_tables_new_1 <- format_sfp_data_1(sfp_new) 
+```
+
+```{r find more duplicates, include=FALSE}
+find_duplicates_1 <- function(x) {
+
+  x %>%
+    group_by(share, filename, sizegb) %>%
+    filter(n() > 1) %>%
+    ungroup()
+
+}
+
+filtered_tables_old_1 <- format_sfp_data_1(sfp_old) %>%
+  split(.$share)
+
+filtered_tables_new_1 <- format_sfp_data_1(sfp_new) %>%
+  split(.$share)
+
+duplicate_tables_old_1 <- lapply(
+  filtered_tables_old_1,
+  find_duplicates_1
+)
+
+duplicate_tables_new_1 <- lapply(
+  filtered_tables_new_1,
+  find_duplicates_1
+)
+
+files_duplicated_1 <- function(x) {
+
+  x %>%
+    group_by(path) %>%
+    summarise(
+      duplicates = n(),
+      .groups = "drop"
+    )
+
+}
+
+duplicate_counts_old_1 <- lapply(
+  duplicate_tables_old_1,
+  files_duplicated_1
+)
+
+duplicate_counts_new_1 <- lapply(
+  duplicate_tables_new_1,
+  files_duplicated_1
+)
+```
+
+```{r join more duplicate tables, include = FALSE}
+join_dupes_1 <- function(old_df, new_df) {
+
+  full_join(
+    old_df,
+    new_df,
+    by = "path",
+    suffix = c("_old_1", "_new_1")
+  ) %>%
+    rename(
+      `folder path`  = path,
+      `old dupe count` = duplicates_old_1,
+      `new dupe count` = duplicates_new_1
+    ) %>%
+    mutate(
+      across(
+        c(`old dupe count`, `new dupe count`),
+        ~ tidyr::replace_na(., 0)
+      ),
+      `dupe count change` =
+        `new dupe count` - `old dupe count`
+    )
+
+}
+
+joined_dupes_1 <- mapply(
+  join_dupes_1,
+  duplicate_counts_old_1,
+  duplicate_counts_new_1,
+  SIMPLIFY = FALSE
+)
+
+names(joined_dupes_1)
+```
+
+```{r calculate more folder totals, include = FALSE}
+calc_folder_totals_1 <- function(x) {
+
+  x %>%
+    group_by(path) %>%
+    summarise(
+      `folder size gb` = sum(sizegb, na.rm = TRUE),
+      `number of files` = n(),
+      .groups = "drop"
+    ) %>%
+    rename(
+      `folder path` = path
+    )
+
+}
+
+folder_totals_old_1 <- lapply(
+  filtered_tables_old_1,
+  calc_folder_totals_1
+)
+
+folder_totals_new_1 <- lapply(
+  filtered_tables_new_1,
+  calc_folder_totals_1
+)
+
+join_totals_1 <- function(old_df, new_df) {
+
+  full_join(
+    old_df,
+    new_df,
+    by = "folder path",
+    suffix = c("_old", "_new")
+  ) %>% 
+    rename(
+      `old folder size gb` = `folder size gb_old`,
+      `new folder size gb` = `folder size gb_new`,
+      `old file count` = `number of files_old`,
+      `new file count` = `number of files_new`
+    ) %>%
+    mutate(
+      across(
+        c(
+          `old folder size gb`,
+          `new folder size gb`,
+          `old file count`,
+          `new file count`
+        ),
+        ~ tidyr::replace_na(., 0)
+      ),
+      `folder size change gb` =
+        `new folder size gb` -
+        `old folder size gb`,
+      `file count change` =
+        `new file count` -
+        `old file count`
+    )
+
+}
+
+joined_totals_1 <- mapply(
+  join_totals_1,
+  folder_totals_old_1,
+  folder_totals_new_1,
+  SIMPLIFY = FALSE
+)
+```
+
+```{r join more tables, include = FALSE}
+build_share_report <- function(
+    share_name,
+    totals_df,
+    dupes_df
+) {
+
+  manager_name <- case_when(
+    share_name == "S65004" ~ "Mike Gash",
+    share_name == "S65005" ~ "Clint Parker",
+    share_name == "S65001" ~ "Jeff Dunne",
+    share_name == "S65007" ~ "Ryan Chapman",
+    share_name == "S65009" ~ "Tony Fiala",
+    share_name == "S65006" ~ "Darren Quinn",
+    share_name == "S65010" ~ "TBD",
+    TRUE ~ ""
+  )
+
+  full_join(
+    totals_df,
+    dupes_df,
+    by = "folder path"
+  ) %>% 
+    mutate(
+      across(
+        c(
+          `old dupe count`,
+          `new dupe count`,
+          `dupe count change`
+        ),
+        ~ tidyr::replace_na(., 0)
+      )
+    ) %>%
+    left_join(
+      accountability_lookup,
+      by = c("folder path" = "folder_path")
+    ) %>%
+    mutate(
+      `Fire Centre Manager` = manager_name,
+      `Accountable Excluded Manager Position` =
+        coalesce(
+          `Accountable Excluded Manager Position`,
+          ""
+        ),
+      `Accountable Excluded Manager Incumbent` =
+        coalesce(
+          `Accountable Excluded Manager Incumbent`,
+          ""
+        )
+    ) %>%
+    relocate(
+      `Fire Centre Manager`,
+      `Accountable Excluded Manager Position`,
+      `Accountable Excluded Manager Incumbent`
+    ) %>%
+    mutate(
+      status = case_when(
+        `old file count` == 0 &
+          `new file count` > 0 ~ "New",
+
+        `old file count` > 0 &
+          `new file count` == 0 ~ "Removed",
+
+        abs(`folder size change gb`) < 0.001 &
+          `file count change` == 0 &
+          `dupe count change` == 0 ~ "Unchanged",
+
+        TRUE ~ "Modified"
+      )
+    ) %>%
+    select(
+      `Fire Centre Manager`,
+      `Accountable Excluded Manager Position`,
+      `Accountable Excluded Manager Incumbent`,
+      status,
+      `folder path`,
+      `previous quarter drive size gb` = `old folder size gb`,
+      `new quarter drive size gb` = `new folder size gb`,
+      `drive size change gb` = `folder size change gb`,
+      `previous quarter file count` = `old file count`,
+      `new quarter file count` = `new file count`,
+      `file count change`,
+      `previous quarter dupe count` = `old dupe count`,
+      `new quarter dupe count` = `new dupe count`,
+      `dupe count change`
+    )
+
+}
+
+fc_reports_1 <- mapply(
+  build_share_report,
+  share_name = names(joined_totals_1),
+  totals_df = joined_totals_1,
+  dupes_df = joined_dupes_1,
+  SIMPLIFY = FALSE
+)
+```
+
+```{r share names for worksheets, include = FALSE}
+
+share_names <- c(
+  S65001 = "PGFC - Prince George",
+  S65004 = "CaFC - Cariboo",
+  S65005 = "CoFC - Coastal",
+  S65006 = "KamFC - Kamloops",
+  S65007 = "NWFC - Northwest",
+  S65009 = "SEFC - Southeast",
+  S65010 = "Depot"
+)
+
+names(fc_reports_1) <- unname(
+  share_names[names(fc_reports_1)]
+)
+
+print(names(fc_reports_1))
+```
