@@ -332,13 +332,13 @@ fc_reports_1 <- mapply(
 ```{r share names for worksheets, include = FALSE}
 
 share_names <- c(
-  S65001 = "PGFC - Prince George",
-  S65004 = "CaFC - Cariboo",
-  S65005 = "CoFC - Coastal",
-  S65006 = "KamFC - Kamloops",
-  S65007 = "NWFC - Northwest",
-  S65009 = "SEFC - Southeast",
-  S65010 = "Depot"
+  S65001 = "KFC - Kamloops S65001",
+  S65004 = "CaFC - Cariboo S65004",
+  S65005 = "CoFC - Coastal S65005",
+  S65006 = "SEFC - Southeast S65006",
+  S65007 = "NWFC - Northwest S65007",
+  S65009 = "PGFC - Price George s65009",
+  S65010 = "Depot S65010"
 )
 
 names(fc_reports_1) <- unname(

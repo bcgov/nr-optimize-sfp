@@ -4,12 +4,8 @@ library(openxlsx)
 library(glue)
 
 # load custom functions from external scripts
-<<<<<<< HEAD
 source(here("scripts", glue('custom_bcws_functions.R')), local = knitr::knit_global())
 source(here("scripts", glue("bcws_accountability.R")), local = knitr::knit_global())
-=======
-source(here("bcws", glue('custom_bcws_functions.R')), local = knitr::knit_global())
->>>>>>> 513e97ffb5662bbd3bf5eb999645b2d69e56e997
 
 # ------------------------------------------------------------
 # Function: render_bcws_programarea_comparisons
@@ -163,8 +159,8 @@ df1_a <- env_rmd1$joined_totals$hq_victoria
 df1_b <- env_rmd1$joined_totals$hq_kam_pwcc
 
 # create sheet names
-eighthSheet = "HQ Victoria"
-ninthSheet = "HQ Kamloops PWCC"
+eighthSheet = "HQ Victoria S65011"
+ninthSheet = "HQ Kamloops S65002"
 
 # add worksheets to workbook
 sheet.names(eighthSheet)
@@ -211,7 +207,7 @@ report2 <- render_bcws_quarterly_comparisons(
 df2_main <- env_rmd2$join_totals
 
 # create sheet names
-tenthSheet = "Training$"
+tenthSheet = "Training Drive"
 
 # add worksheets to workbook
 sheet.names(tenthSheet)
